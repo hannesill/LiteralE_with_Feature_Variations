@@ -1,7 +1,5 @@
 import torch
 from torch import nn
-from torch.autograd import Variable
-from torch.nn import Parameter
 from torch.nn.init import xavier_normal_, xavier_uniform_
 
 
