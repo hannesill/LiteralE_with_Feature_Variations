@@ -192,7 +192,7 @@ def train_lp_objective(config, model_lp):
                 json.dump(history, f)
 
             # Save model
-            torch.save(model_lp.state_dict(), 'model_lp.pth')
+            torch.save(model_lp.state_dict(), f"results/{RUN_NAME}_model.pt")
 
 
 if __name__ == '__main__':
@@ -292,14 +292,15 @@ if __name__ == '__main__':
     hits3_history = history["val_hits3"]
     hits1_history = history["val_hits1"]
 
-    # Plot all histories and save figure
-    plt.plot(epochs, mrr_history, label="MRR")
-    plt.plot(epochs, mr_history, label="MR")
-    plt.plot(epochs, hits10_history, label="Hits@10")
-    plt.plot(epochs, hits5_history, label="Hits@5")
-    plt.plot(epochs, hits3_history, label="Hits@3")
-    plt.plot(epochs, hits1_history, label="Hits@1")
-    plt.xlabel("Epoch")
-    plt.ylabel("Validation metric")
-    plt.legend()
+    print(history)
+
+    # Plot all histories and save figures
+    fig, axs = plt.subplots(3, 2, figsize=(15, 15))
+    for ax, history, title in zip(axs.flatten(),
+                                  [mrr_history, mr_history, hits10_history, hits5_history, hits3_history, hits1_history],
+                                  ["MRR", "MR", "Hits@10", "Hits@5", "Hits@3", "Hits@1"]):
+        ax.bar(epochs, history)
+        ax.set_title(f"{title} history")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel(title)
     plt.savefig(f"results/{RUN_NAME}_history.png")
