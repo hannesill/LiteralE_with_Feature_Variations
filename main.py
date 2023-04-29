@@ -161,7 +161,7 @@ def train_lp_objective(config, model_lp):
                "val_hits3": [],
                "val_hits1": []}
 
-    for epoch in range(start_epoch, 10):
+    for epoch in range(start_epoch, config['epochs'] + 1):
         print(f"--> Epoch {epoch}")
         train_standard_lp(config,
                           model_lp,
@@ -169,7 +169,7 @@ def train_lp_objective(config, model_lp):
                           optimizer,
                           dataset)
         # Evaluating
-        if epoch % 5 == 0:
+        if epoch % config['val_every'] == 0:
             print("Evaluating model...")
             mrr, mr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                               dataset,
@@ -214,6 +214,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--lit", action="store_true")
+    parser.add_argument("--epochs", type=int, default=1000)
+    parser.add_argument("--val_every", type=int, default=100)
     args = parser.parse_args()
     if args.lit:
         model_type = "DistMultLit"
@@ -221,29 +223,23 @@ if __name__ == '__main__':
         model_type = "DistMult"
     print(f"Model type: {model_type}")
 
-    # default config
+    EPOCHS = args.epochs
+    VAL_EVERY = args.val_every
+
+    # default config (best for DistMult)
     config = {'dataset': dataset,
-              'dim': 200,
-              'lr': 0.001,
+              'epochs': EPOCHS,
+              'val_every': VAL_EVERY,
+              'dim': 100,
+              'lr': 0.00065,
               'batch_size': 256,
               'dropout': 0.2,
               'alpha': 0,
-              'eta': 5,
+              'eta': 100,
               'reg': False,
               'batch_norm': False}
 
     # TODO: For DistMult+LiteralE config look at LiteralE paper
-    best_config_distmult = {
-        'dataset': dataset,
-        'dim': 100,
-        'lr': 0.00065,
-        'batch_size': 256,
-        'dropout': 0.2,
-        'alpha': 0,
-        'eta': 100,
-        'reg': False,
-        'batch_norm': False
-    }
 
     # 14000, 1, 300 -> 14000, 300
     dataset.features_txt = dataset.features_txt.squeeze()
