@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.nn.init import xavier_normal_, xavier_uniform_
+from torch.nn.init import xavier_normal_
 
 
 class DistMult(nn.Module):
@@ -72,13 +72,11 @@ class DistMultLit(nn.Module):
         self.batch_norm = batch_norm
         self.numerical_literals = numerical_literals
         self.text_literals = text_literals
-        self.num_numerical_literals = numerical_literals.shape[1]
-        self.num_text_literals = text_literals.shape[1]
 
         # Initialize embeddings
         self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
         self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
-        self.literal_embeddings = Gate(self.num_numerical_literals, self.num_text_literals, embedding_dim)
+        self.literal_embeddings = Gate(numerical_literals.shape[1], text_literals.shape[1], embedding_dim)
 
         # Initialize loss function and weights
         self.loss = nn.BCELoss()

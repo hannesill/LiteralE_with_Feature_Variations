@@ -252,8 +252,8 @@ if __name__ == '__main__':
     if model_type == "DistMultLit":
         model_lp = DistMultLit(dataset.num_entities,
                                dataset.num_relations,
-                               dataset.features_num,
-                               dataset.features_txt,
+                               dataset.features_num.to(DEVICE),
+                               dataset.features_txt.to(DEVICE),
                                config['dim'])
     else:
         model_lp = DistMult(dataset.num_entities, dataset.num_relations, config['dim'])
