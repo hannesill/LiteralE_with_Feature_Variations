@@ -202,7 +202,6 @@ if __name__ == '__main__':
     else:
         print('Using CPU')
         DEVICE = torch.device('cpu')
-    RUN_NAME = 'feature_vs_objective_link_pred_' + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     dataset_name = 'fb15k-237'
     if not osp.isfile(f'data/{dataset_name}/processed.pt'):
@@ -225,6 +224,8 @@ if __name__ == '__main__':
 
     EPOCHS = args.epochs
     VAL_EVERY = args.val_every
+
+    RUN_NAME = datetime.now().strftime("%m-%d_%H-%M") + "_" + model_type + "_" + dataset_name
 
     # default config (best for DistMult)
     config = {'dataset': dataset,
@@ -295,7 +296,7 @@ if __name__ == '__main__':
     for ax, history, title in zip(axs.flatten(),
                                   [mrr_history, mr_history, hits10_history, hits5_history, hits3_history, hits1_history],
                                   ["MRR", "MR", "Hits@10", "Hits@5", "Hits@3", "Hits@1"]):
-        ax.bar(epochs, history)
+        ax.plot(epochs, history)
         ax.set_title(f"{title} history")
         ax.set_xlabel("Epoch")
         ax.set_ylabel(title)
