@@ -196,6 +196,11 @@ def train_lp_objective(config, model_lp):
 
 
 if __name__ == '__main__':
+    # Set random seed
+    seed = 42
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
     if torch.cuda.is_available():
         print('Using CUDA')
         DEVICE = torch.device('cuda')
