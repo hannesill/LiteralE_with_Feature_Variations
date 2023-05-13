@@ -77,10 +77,12 @@ def train_standard_lp(config,
 def compute_rank(ranks):
     # fair ranking prediction as the average
     # of optimistic and pessimistic ranking
+    # TODO: pessimistic Teil raus nehmen oder zu pessimistic wie bei optimistic + 1 hinzuzufügen und testweise ausführen
     true = ranks[0]
     optimistic = (ranks > true).sum() + 1
-    pessimistic = (ranks >= true).sum()
-    return (optimistic + pessimistic).float() * 0.5
+    # pessimistic = (ranks >= true).sum()
+    # return (optimistic + pessimistic).float() * 0.5
+    return optimistic.float() * 0.5
 
 
 @torch.no_grad()
@@ -171,6 +173,7 @@ def train_lp_objective(config, model_lp):
         # Evaluating
         if epoch % config['val_every'] == 0:
             print("Evaluating model...")
+            # TODO: Ggf nicht nur auf 5000 sondern auf allen Tripeln evaluieren
             mrr, mr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                               dataset,
                                                                               dataset.edge_index_val,
@@ -270,6 +273,7 @@ if __name__ == '__main__':
 
     # test model
     print("Start testing...")
+    # TODO: Nicht nur auf 5000 sondern auf allen Tripeln evaluieren
     mrr, mr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                       dataset,
                                                                       dataset.edge_index_test,
