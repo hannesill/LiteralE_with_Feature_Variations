@@ -44,16 +44,16 @@ class Gate(nn.Module):
 
     def __init__(self, num_numerical_literals, num_text_literals, embedding_dim):
         super(Gate, self).__init__()
-        self.W_ze = nn.Linear(embedding_dim, embedding_dim)
-        self.W_zl_num = nn.Linear(num_numerical_literals, embedding_dim)
-        self.W_zl_text = nn.Linear(num_text_literals, embedding_dim)
+        self.gate_ent = nn.Linear(embedding_dim, embedding_dim)
+        self.gate_num_lit = nn.Linear(num_numerical_literals, embedding_dim)
+        self.gate_text_lit = nn.Linear(num_text_literals, embedding_dim)
         self.bias = nn.Parameter(torch.zeros(embedding_dim))
         self.W_h = nn.Linear(embedding_dim + num_numerical_literals + num_text_literals, embedding_dim)
 
     def forward(self, entity_emb, entity_num_lit, entity_text_lit):
-        z_e = self.W_ze(entity_emb)
-        z_l_num = self.W_zl_num(entity_num_lit)
-        z_l_text = self.W_zl_text(entity_text_lit)
+        z_e = self.gate_ent(entity_emb)
+        z_l_num = self.gate_num_lit(entity_num_lit)
+        z_l_text = self.gate_text_lit(entity_text_lit)
         z = torch.sigmoid(z_e + z_l_num + z_l_text + self.bias)
         h = torch.tanh(self.W_h(torch.cat((entity_emb, entity_num_lit, entity_text_lit), dim=1)))
 
@@ -121,3 +121,9 @@ class DistMultLit(nn.Module):
 
         result = torch.sum(e1_emb * r_emb * e2_emb, dim=1)
         return torch.sigmoid(result)
+
+
+##############################################################################################################
+# Paper DistMultLit
+##############################################################################################################
+

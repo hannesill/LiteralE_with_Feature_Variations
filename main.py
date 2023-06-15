@@ -28,11 +28,7 @@ def negative_sampling(edge_index, num_nodes, eta=1):
     return neg_edge_index
 
 
-def train_standard_lp(config,
-                      model_lp,
-                      loss_function_model,
-                      optimizer,
-                      dataset):
+def train_standard_lp(config, model_lp, loss_function_model, optimizer, dataset):
     model_lp.train()
     start = time.time()
 
@@ -75,9 +71,9 @@ def train_standard_lp(config,
 
 @torch.no_grad()
 def compute_rank(ranks):
+    print(ranks)
     # fair ranking prediction as the average
     # of optimistic and pessimistic ranking
-    # TODO: pessimistic Teil raus nehmen oder zu pessimistic wie bei optimistic + 1 hinzuzufügen und testweise ausführen
     true = ranks[0]
     optimistic = (ranks > true).sum() + 1
     # pessimistic = (ranks >= true).sum()
@@ -86,8 +82,7 @@ def compute_rank(ranks):
 
 
 @torch.no_grad()
-def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_type,
-                               fast=False):
+def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_type, fast=False):
     model_lp.eval()
     ranks = []
     num_samples = eval_edge_type.numel() if not fast else 5000
@@ -134,12 +129,15 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
 
     num_ranks = len(ranks)
     ranks = torch.tensor(ranks, dtype=torch.float)
-    return (1. / ranks).mean().item(), \
-        ranks.mean().item(), \
-        (ranks[ranks <= 10].size(0) / num_ranks), \
-        (ranks[ranks <= 5].size(0) / num_ranks), \
-        (ranks[ranks <= 3].size(0) / num_ranks), \
-        (ranks[ranks <= 1].size(0) / num_ranks)
+
+    mr = ranks.mean().item()
+    mrr = (1. / ranks).mean().item()
+    hits_at_10 = (ranks[ranks <= 10].size(0) / num_ranks)
+    hits_at_5 = (ranks[ranks <= 5].size(0) / num_ranks)
+    hits_at_3 = (ranks[ranks <= 3].size(0) / num_ranks)
+    hits_at_1 = (ranks[ranks <= 1].size(0) / num_ranks)
+
+    return mr, mrr, hits_at_10, hits_at_5, hits_at_3, hits_at_1
 
 
 def train_lp_objective(config, model_lp):
@@ -174,12 +172,12 @@ def train_lp_objective(config, model_lp):
         if epoch % config['val_every'] == 0:
             print("Evaluating model...")
             # TODO: Ggf nicht nur auf 5000 sondern auf allen Tripeln evaluieren
-            mrr, mr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
+            mr, mrr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                               dataset,
                                                                               dataset.edge_index_val,
                                                                               dataset.edge_type_val,
                                                                               fast=True)
-            print('val mrr:', mrr, 'mr:', mr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
+            print('val mr:', mr, 'mrr:', mrr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
 
             # Save validation metrics
             history["epoch"].append(epoch)
@@ -274,16 +272,16 @@ if __name__ == '__main__':
     # test model
     print("Start testing...")
     # TODO: Nicht nur auf 5000 sondern auf allen Tripeln evaluieren
-    mrr, mr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
+    mr, mrr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                       dataset,
                                                                       dataset.edge_index_test,
                                                                       dataset.edge_type_test,
                                                                       fast=True)
-    print('test mrr:', mrr, 'mr:', mr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
+    print('test mr:', mr, 'mrr:', mrr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
 
     # Save test results
     with open(f"results/{RUN_NAME}_test_results.txt", "w") as f:
-        f.write(f"test mrr: {mrr}, mr: {mr}, hits@10: {hits10}, hits@5: {hits5}, hits@3: {hits3}, hits@1: {hits1}")
+        f.write(f"test mr: {mr}, mrr: {mrr}, hits@10: {hits10}, hits@5: {hits5}, hits@3: {hits3}, hits@1: {hits1}")
 
     # Load history dictionary
     with open(f"results/{RUN_NAME}_history.json", "r") as f:
