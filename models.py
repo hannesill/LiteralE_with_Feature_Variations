@@ -194,17 +194,13 @@ class DistMultLitFromPaper(torch.nn.Module):
         rel_emb = self.emb_rel(rel)
         e2_emb = self.emb_e(e2)
 
-        e1_emb = e1_emb.view(-1, self.emb_dim)
-        rel_emb = rel_emb.view(-1, self.emb_dim)
-        e2_emb = e2_emb.view(-1, self.emb_dim)
-
         # Begin literals
         # --------------
-        e1_num_lit = self.numerical_literals[e1.view(-1)]
-        e1_txt_lit = self.text_literals[e1.view(-1)]
+        e1_num_lit = self.numerical_literals[e1]
+        e1_txt_lit = self.text_literals[e1]
         e1_emb = self.emb_lit(e1_emb, e1_num_lit, e1_txt_lit)
-        e2_num_lit = self.numerical_literals[e2.view(-1)]
-        e2_txt_lit = self.text_literals[e2.view(-1)]
+        e2_num_lit = self.numerical_literals[e2]
+        e2_txt_lit = self.text_literals[e2]
         e2_emb = self.emb_lit(e2_emb, e2_num_lit, e2_txt_lit)
         # --------------
         # End literals
@@ -216,4 +212,4 @@ class DistMultLitFromPaper(torch.nn.Module):
         pred = torch.mm(e1_emb * rel_emb, e2_emb.t())
         pred = torch.sigmoid(pred)
 
-        return pred
+        return torch.flatten(pred)
