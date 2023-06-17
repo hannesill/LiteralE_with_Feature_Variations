@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from dataset import LiteralLinkPredDataset
-from models import DistMult, DistMultLit
+from models import DistMult, DistMultLit, DistMultLitFromPaper
 
 
 def negative_sampling(edge_idxs, num_nodes, eta=1):
@@ -259,11 +259,15 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--lit", action="store_true")
+    parser.add_argument("--paper", action="store_true")
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--val_every", type=int, default=100)
     args = parser.parse_args()
     if args.lit:
-        model_type = "DistMultLit"
+        if args.paper:
+            model_type = "DistMultLitPaper"
+        else:
+            model_type = "DistMultLit"
     else:
         model_type = "DistMult"
     print(f"Model type: {model_type}")
@@ -298,6 +302,12 @@ if __name__ == '__main__':
                                dataset.features_num.to(DEVICE),
                                dataset.features_txt.to(DEVICE),
                                config['dim'])
+    elif model_type == "DistMultLitPaper":
+        model_lp = DistMultLitFromPaper(dataset.num_entities,
+                                        dataset.num_relations,
+                                        dataset.features_num.to(DEVICE),
+                                        dataset.features_txt.to(DEVICE),
+                                        config['dim'])
     else:
         model_lp = DistMult(dataset.num_entities, dataset.num_relations, config['dim'])
     model_lp.to(DEVICE)
@@ -341,7 +351,8 @@ if __name__ == '__main__':
     # Plot all histories and save figures
     fig, axs = plt.subplots(3, 2, figsize=(15, 15))
     for ax, history, title in zip(axs.flatten(),
-                                  [mrr_history, mr_history, hits10_history, hits5_history, hits3_history, hits1_history],
+                                  [mrr_history, mr_history, hits10_history, hits5_history, hits3_history,
+                                   hits1_history],
                                   ["MRR", "MR", "Hits@10", "Hits@5", "Hits@3", "Hits@1"]):
         ax.plot(epochs, history)
         ax.set_title(f"{title} history")
