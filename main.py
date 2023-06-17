@@ -13,24 +13,47 @@ from dataset import LiteralLinkPredDataset
 from models import DistMult, DistMultLit
 
 
-def negative_sampling(edge_index, num_nodes, eta=1):
-    # Sample edges by corrupting either the subject or the object of each edge.
-    mask_1 = torch.rand(edge_index.size(0) * eta) < 0.5
+def negative_sampling(edge_idxs, num_nodes, eta=1):
+    """
+    Sample negative edges by corrupting either the subject or the object of each edge.
+
+    :param edge_idxs: torch.tensor of shape (2, num_edges)
+    :param num_nodes: int
+    :param eta: int (default: 1) number of negative samples per positive sample
+    :return: torch.tensor of shape (2 * eta, num_edges)
+    """
+
+    mask_1 = torch.rand(edge_idxs.size(0) * eta) < 0.5
     mask_2 = ~mask_1
 
     mask_1 = mask_1.to(DEVICE)
     mask_2 = mask_2.to(DEVICE)
 
-    neg_edge_index = edge_index.clone().repeat(eta, 1)
+    neg_edge_index = edge_idxs.clone().repeat(eta, 1)
     neg_edge_index[mask_1, 0] = torch.randint(num_nodes, (1, mask_1.sum()), device=DEVICE)
     neg_edge_index[mask_2, 1] = torch.randint(num_nodes, (1, mask_2.sum()), device=DEVICE)
 
     return neg_edge_index
 
 
-def train_standard_lp(config, model_lp, loss_function_model, optimizer, dataset):
+def train_standard_lp(config, model_lp):
+    """
+    Train a standard link prediction model.
+
+    :param config: dictionary with configuration parameters (dataset, batch_size, num_epochs, learning_rate,...)
+    :param model_lp: PyTorch model for link prediction
+    :return: Nothing
+    """
     model_lp.train()
     start = time.time()
+
+    dataset = config['dataset']
+
+    loss_function_model = torch.nn.BCELoss(reduction='mean')
+    if config['alpha'] > 0:
+        optimizer = torch.optim.Adam(list(model_lp.parameters()), lr=config['lr'])
+    else:
+        optimizer = torch.optim.Adam(model_lp.parameters(), lr=config['lr'])
 
     train_edge_index_t = dataset.edge_index_train.t().to(DEVICE)
     train_edge_type = dataset.edge_type_train.to(DEVICE)
@@ -70,15 +93,15 @@ def train_standard_lp(config, model_lp, loss_function_model, optimizer, dataset)
 
 
 @torch.no_grad()
-def compute_rank(ranks):
-    print(ranks)
-    # fair ranking prediction as the average
-    # of optimistic and pessimistic ranking
-    true = ranks[0]
-    optimistic = (ranks > true).sum() + 1
-    # pessimistic = (ranks >= true).sum()
-    # return (optimistic + pessimistic).float() * 0.5
-    return optimistic.float() * 0.5
+def compute_rank(out):
+    # The first element of the output is the true triple score
+    true_score = out[0]
+    # The other elements are the corrupted triple scores
+    corrupted_scores = out[1:]
+    # The rank is the number of corrupted triplets that have a score higher than the true triple score
+    # +1 because the true triple itself is counted -> the highest possible rank is 1
+    rank = (corrupted_scores > true_score).sum().item() + 1
+    return rank
 
 
 @torch.no_grad()
@@ -86,8 +109,15 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
     model_lp.eval()
     ranks = []
     num_samples = eval_edge_type.numel() if not fast else 5000
+
+    # Iterate over all triples to be scored
     for triple_index in tqdm(range(num_samples)):
+        # Get the triple (src, rel, dst)
         (src, dst), rel = eval_edge_index[:, triple_index], eval_edge_type[triple_index]
+
+        # TODO: Is this not the same as negative_sampling?
+
+        # HEAD PREDICTION TASK
 
         # Try all nodes as tails, but delete true triplets:
         tail_mask = torch.ones(dataset.num_entities, dtype=torch.bool)
@@ -96,17 +126,27 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
             (dataset.edge_index_val, dataset.edge_type_val),
             (dataset.edge_index_test, dataset.edge_type_test),
         ]:
+            # Set the mask for all true triplets to false
             tail_mask[tails[(heads == src) & (types == rel)]] = False
 
+        # Select all nodes that are not the true tail
         tail = torch.arange(dataset.num_entities)[tail_mask]
+        # Add the true tail to the front of the list of tail nodes to be scored
         tail = torch.cat([torch.tensor([dst]), tail])
+        # Create a list with src as a value for all tail nodes
         head = torch.full_like(tail, fill_value=src)
+        # Create a list with rel as a value for all tail nodes
         eval_edge_typ_tensor = torch.full_like(tail, fill_value=rel).to(DEVICE)
 
+        # Score all triples (one true triple and all corrupted triples)
         out = model_lp.forward(head.to(DEVICE), eval_edge_typ_tensor.to(DEVICE), tail.to(DEVICE))
 
+        # Compute the rank of the true triple
         rank = compute_rank(out)
+        # Add the rank to the list of ranks
         ranks.append(rank)
+
+        # TAIL PREDICTION TASK
 
         # Try all nodes as heads, but delete true triplets:
         head_mask = torch.ones(dataset.num_entities, dtype=torch.bool)
@@ -115,21 +155,31 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
             (dataset.edge_index_val, dataset.edge_type_val),
             (dataset.edge_index_test, dataset.edge_type_test),
         ]:
+            # Set the mask for all true triplets to false
             head_mask[heads[(tails == dst) & (types == rel)]] = False
 
+        # Select all nodes that are not the true head
         head = torch.arange(dataset.num_entities)[head_mask]
+        # Add the true head to the front of the list of head nodes to be scored
         head = torch.cat([torch.tensor([src]), head])
+        # Create a list with dst as a value for all head nodes
         tail = torch.full_like(head, fill_value=dst)
+        # Create a list with rel as a value for all head nodes
         eval_edge_typ_tensor = torch.full_like(head, fill_value=rel).to(DEVICE)
 
+        # Score all triples (one true triple and all corrupted triples)
         out = model_lp.forward(head.to(DEVICE), eval_edge_typ_tensor.to(DEVICE), tail.to(DEVICE))
 
+        # Compute the rank of the true triple
         rank = compute_rank(out)
+        # Add the rank to the list of ranks
         ranks.append(rank)
 
+    # Convert the list of ranks to a tensor
     num_ranks = len(ranks)
     ranks = torch.tensor(ranks, dtype=torch.float)
 
+    # Compute metrics
     mr = ranks.mean().item()
     mrr = (1. / ranks).mean().item()
     hits_at_10 = (ranks[ranks <= 10].size(0) / num_ranks)
@@ -142,12 +192,6 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
 
 def train_lp_objective(config, model_lp):
     dataset = config['dataset']
-
-    loss_function_model = torch.nn.BCELoss(reduction='mean')
-    if config['alpha'] > 0:
-        optimizer = torch.optim.Adam(list(model_lp.parameters()), lr=config['lr'])
-    else:
-        optimizer = torch.optim.Adam(model_lp.parameters(), lr=config['lr'])
 
     start_epoch = 1
     model_lp.train()
@@ -163,11 +207,7 @@ def train_lp_objective(config, model_lp):
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         print(f"--> Epoch {epoch}")
-        train_standard_lp(config,
-                          model_lp,
-                          loss_function_model,
-                          optimizer,
-                          dataset)
+        train_standard_lp(config, model_lp)
         # Evaluating
         if epoch % config['val_every'] == 0:
             print("Evaluating model...")
