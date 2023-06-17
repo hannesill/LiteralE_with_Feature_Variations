@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.nn.init import xavier_normal_
-from torch.autograd import Variable
 
 
 class DistMult(nn.Module):
@@ -171,12 +170,12 @@ class DistMultLitFromPaper(torch.nn.Module):
 
         # Num. Literal
         # num_ent x n_num_lit
-        self.numerical_literals = Variable(torch.from_numpy(numerical_literals)).cuda()
+        self.numerical_literals = numerical_literals
         self.n_num_lit = self.numerical_literals.size(1)
 
         # Txt. Literal
         # num_ent x n_txt_lit
-        self.text_literals = Variable(torch.from_numpy(text_literals)).cuda()
+        self.text_literals = text_literals
         self.n_txt_lit = self.text_literals.size(1)
 
         # LiteralE's g
