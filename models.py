@@ -209,7 +209,12 @@ class DistMultLitFromPaper(torch.nn.Module):
         rel_emb = self.inp_drop(rel_emb)
         e2_emb = self.inp_drop(e2_emb)
 
-        pred = torch.mm(e1_emb * rel_emb, e2_emb.t())
-        pred = torch.sigmoid(pred)
+        # pred = torch.mm(e1_emb * rel_emb, e2_emb.t())
+        # pred = torch.sigmoid(pred)
 
-        return torch.flatten(pred)
+        # return pred
+
+        out = torch.sigmoid(torch.sum(e1_emb * rel_emb * e2_emb, dim=1))
+        out = torch.flatten(out)
+
+        return out
