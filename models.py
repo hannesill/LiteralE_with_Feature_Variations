@@ -189,26 +189,31 @@ class DistMultLitFromPaper(torch.nn.Module):
         xavier_normal_(self.emb_e.weight.data)
         xavier_normal_(self.emb_rel.weight.data)
 
-    def forward(self, e1, rel):
+    def forward(self, e1, rel, e2):
         e1_emb = self.emb_e(e1)
         rel_emb = self.emb_rel(rel)
+        e2_emb = self.emb_e(e2)
 
         e1_emb = e1_emb.view(-1, self.emb_dim)
         rel_emb = rel_emb.view(-1, self.emb_dim)
+        e2_emb = e2_emb.view(-1, self.emb_dim)
 
         # Begin literals
         # --------------
         e1_num_lit = self.numerical_literals[e1.view(-1)]
         e1_txt_lit = self.text_literals[e1.view(-1)]
         e1_emb = self.emb_lit(e1_emb, e1_num_lit, e1_txt_lit)
-        e2_multi_emb = self.emb_lit(self.emb_e.weight, self.numerical_literals, self.text_literals)
+        e2_num_lit = self.numerical_literals[e2.view(-1)]
+        e2_txt_lit = self.text_literals[e2.view(-1)]
+        e2_emb = self.emb_lit(e2_emb, e2_num_lit, e2_txt_lit)
         # --------------
         # End literals
 
         e1_emb = self.inp_drop(e1_emb)
         rel_emb = self.inp_drop(rel_emb)
+        e2_emb = self.inp_drop(e2_emb)
 
-        pred = torch.mm(e1_emb * rel_emb, e2_multi_emb.t())
+        pred = torch.mm(e1_emb * rel_emb, e2_emb.t())
         pred = torch.sigmoid(pred)
 
         return pred
