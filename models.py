@@ -76,7 +76,7 @@ class DistMultLit(nn.Module):
         # Initialize embeddings
         self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
         self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
-        self.literal_embeddings = Gate(numerical_literals.shape[1], text_literals.shape[1], embedding_dim)
+        self.literal_embeddings = GateMulti(embedding_dim, numerical_literals.shape[1], text_literals.shape[1])
 
         # Initialize loss function and weights
         self.loss = nn.BCELoss()
