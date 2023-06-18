@@ -115,8 +115,6 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
         # Get the triple (src, rel, dst)
         (src, dst), rel = eval_edge_index[:, triple_index], eval_edge_type[triple_index]
 
-        # TODO: Is this not the same as negative_sampling?
-
         # HEAD PREDICTION TASK
 
         # Try all nodes as tails, but delete true triplets:
@@ -175,8 +173,9 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
         # Add the rank to the list of ranks
         ranks.append(rank)
 
-    # Convert the list of ranks to a tensor
     num_ranks = len(ranks)
+
+    # Convert the list of ranks to a tensor
     ranks = torch.tensor(ranks, dtype=torch.float)
 
     # Compute metrics

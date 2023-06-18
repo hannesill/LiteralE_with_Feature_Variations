@@ -1,25 +1,24 @@
 import torch
 from torch import nn
-from torch.nn.init import xavier_normal_
 
 
 class DistMult(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim, dropout=0.2, batch_norm=False):
         super().__init__()
         self.batch_norm = batch_norm
-        self.entity_embedding = torch.nn.Embedding(num_entities, embedding_dim)
-        self.rel_embedding = torch.nn.Embedding(num_relations, embedding_dim)
+        self.entity_embedding = nn.Embedding(num_entities, embedding_dim)
+        self.rel_embedding = nn.Embedding(num_relations, embedding_dim)
 
-        self.dp_ent = torch.nn.Dropout(dropout)
-        self.dp_rel = torch.nn.Dropout(dropout)
+        self.dp_ent = nn.Dropout(dropout)
+        self.dp_rel = nn.Dropout(dropout)
 
-        self.bn_head = torch.nn.BatchNorm1d(embedding_dim)
-        self.bn_rel = torch.nn.BatchNorm1d(embedding_dim)
-        self.bn_tail = torch.nn.BatchNorm1d(embedding_dim)
+        self.bn_head = nn.BatchNorm1d(embedding_dim)
+        self.bn_rel = nn.BatchNorm1d(embedding_dim)
+        self.bn_tail = nn.BatchNorm1d(embedding_dim)
 
     def init(self):
-        xavier_normal_(self.entity_embedding.weight.data)
-        xavier_normal_(self.rel_embedding.weight.data)
+        nn.init.xavier_normal_(self.entity_embedding.weight.data)
+        nn.init.xavier_normal_(self.rel_embedding.weight.data)
 
     def forward(self, e1_idx, rel_idx, e2_idx):
         e1_emb = self.dp_ent(self.entity_embedding(e1_idx))
@@ -68,7 +67,6 @@ class DistMultLit(nn.Module):
                  dropout=0.2, batch_norm=False):
         super(DistMultLit, self).__init__()
         # Initialize parameters
-        self.embedding_dim = embedding_dim
         self.batch_norm = batch_norm
         self.numerical_literals = numerical_literals
         self.text_literals = text_literals
@@ -80,18 +78,15 @@ class DistMultLit(nn.Module):
 
         # Initialize loss function and weights
         self.loss = nn.BCELoss()
-        self.init_weights()
+        # self.init_weights()
+        # Difference: Paper model does not call init_weights. TODO: Why?
 
         # Initialize dropout and batch normalization
         # TODO: Dropout auch für Gate?
-        self.dp_e = torch.nn.Dropout(dropout)
-        self.dp_r = torch.nn.Dropout(dropout)
+        self.dp = nn.Dropout(dropout)
 
-        # TODO: Batch normalization for both e1 and e2? Also for literal embeddings?
         if self.batch_norm:
-            self.bn_e1 = torch.nn.BatchNorm1d(embedding_dim)
-            self.bn_r = torch.nn.BatchNorm1d(embedding_dim)
-            self.bn_e2 = torch.nn.BatchNorm1d(embedding_dim)
+            self.bn = nn.BatchNorm1d(embedding_dim)
 
     def init_weights(self):
         nn.init.xavier_normal_(self.entity_embeddings.weight.data)
@@ -104,10 +99,11 @@ class DistMultLit(nn.Module):
         e2_emb = self.entity_embeddings(e2_idx)
 
         # Batch normalization
+        # TODO: Batch normalization for both e1 and e2? Also for literal embeddings?
         if self.batch_norm:
-            e1_emb = self.bn_e1(e1_emb)
-            r_emb = self.bn_r(r_emb)
-            e2_emb = self.bn_e2(e2_emb)
+            e1_emb = self.bn(e1_emb)
+            r_emb = self.bn(r_emb)
+            e2_emb = self.bn(e2_emb)
 
         # Get embeddings for numerical and text literals
         # For e1
@@ -120,9 +116,9 @@ class DistMultLit(nn.Module):
         e2_emb = self.literal_embeddings(e2_emb, e2_num_lit, e2_text_lit)
 
         # Apply dropout
-        e1_emb = self.dp_e(e1_emb)
-        r_emb = self.dp_r(r_emb)
-        e2_emb = self.dp_e(e2_emb)
+        e1_emb = self.dp(e1_emb)
+        r_emb = self.dp(r_emb)
+        e2_emb = self.dp(e2_emb)
 
         out = torch.sigmoid(torch.sum(e1_emb * r_emb * e2_emb, dim=1))
         out = torch.flatten(out)
@@ -157,31 +153,23 @@ class DistMultLitFromPaper(torch.nn.Module):
     def __init__(self, num_entities, num_relations, numerical_literals, text_literals, emb_dim, dropout=0.2):
         super(DistMultLitFromPaper, self).__init__()
 
+        # Initialize parameters
         self.emb_dim = emb_dim
+        self.numerical_literals = numerical_literals
+        self.text_literals = text_literals
 
+        # Initialize embeddings
         self.emb_e = torch.nn.Embedding(num_entities, self.emb_dim, padding_idx=0)
         self.emb_rel = torch.nn.Embedding(num_relations, self.emb_dim, padding_idx=0)
-
-        # Num. Literal
-        # num_ent x n_num_lit
-        self.numerical_literals = numerical_literals
-        self.n_num_lit = self.numerical_literals.size(1)
-
-        # Txt. Literal
-        # num_ent x n_txt_lit
-        self.text_literals = text_literals
-        self.n_txt_lit = self.text_literals.size(1)
-
-        # LiteralE's g
-        self.emb_lit = GateMulti(self.emb_dim, self.n_num_lit, self.n_txt_lit)
+        self.emb_lit = GateMulti(self.emb_dim, text_literals.size(1), numerical_literals.size(1))
 
         # Dropout + loss
         self.inp_drop = torch.nn.Dropout(dropout)
-        self.loss = torch.nn.BCELoss()
+        self.loss = nn.BCELoss()
 
     def init(self):
-        xavier_normal_(self.emb_e.weight.data)
-        xavier_normal_(self.emb_rel.weight.data)
+        nn.init.xavier_normal_(self.emb_e.weight.data)
+        nn.init.xavier_normal_(self.emb_rel.weight.data)
 
     def forward(self, e1, rel, e2):
         e1_emb = self.emb_e(e1)
