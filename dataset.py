@@ -93,7 +93,7 @@ class LiteralLinkPredDataset(Dataset):
         nlp = spacy.load('en_core_web_md')
 
         # TODO (optional): Take every literal feature and not just 1 -> take a look at LiteralE original impl
-        # todo implement to use the non negative filter features_num_mask -> Moritz
+        # TODO implement to use the non negative filter features_num_mask -> Moritz
         self.features_txt = []
         for i in tqdm(range(len(self.entities))):
             df_i = df_literals_txt[df_literals_txt[0] == i]
