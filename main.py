@@ -205,17 +205,14 @@ def train_lp_objective(config, model_lp):
                "val_hits1": []}
 
     for epoch in range(start_epoch, config['epochs'] + 1):
-        print(f"--> Epoch {epoch}")
-        train_standard_lp(config, model_lp)
         # Evaluating
-        if epoch % config['val_every'] == 0:
+        if epoch == 1 or epoch % config['val_every'] == 0:
             print("Evaluating model...")
-            # TODO: Ggf nicht nur auf 5000 sondern auf allen Tripeln evaluieren
             mr, mrr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                               dataset,
                                                                               dataset.edge_index_val,
                                                                               dataset.edge_type_val,
-                                                                              fast=True)
+                                                                              fast=False)
             print('val mr:', mr, 'mrr:', mrr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
 
             # Save validation metrics
@@ -233,6 +230,10 @@ def train_lp_objective(config, model_lp):
 
             # Save model
             torch.save(model_lp.state_dict(), f"results/{RUN_NAME}_model.pt")
+
+        # Training
+        print(f"--> Epoch {epoch}")
+        train_standard_lp(config, model_lp)
 
 
 if __name__ == '__main__':
@@ -325,7 +326,7 @@ if __name__ == '__main__':
                                                                       dataset,
                                                                       dataset.edge_index_test,
                                                                       dataset.edge_type_test,
-                                                                      fast=True)
+                                                                      fast=False)
     print('test mr:', mr, 'mrr:', mrr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
 
     # Save test results
