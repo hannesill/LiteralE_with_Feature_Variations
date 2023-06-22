@@ -8,7 +8,7 @@
 #SBATCH -p gpu
 #SBATCH -c 2
 #SBATCH --gres=gpu:1
-#SBATCH -w schlumpfine
+#SBATCH -w schlaubi
 #SBATCH --time=08:00:00
 
 # Load the conda environment
