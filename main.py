@@ -240,11 +240,14 @@ if __name__ == '__main__':
     # Set random seed
     seed = 42
     torch.manual_seed(seed)
+    torch.use_deterministic_algorithms(True)
     np.random.seed(seed)
 
     if torch.cuda.is_available():
         print('Using CUDA')
         DEVICE = torch.device('cuda')
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # for multi-GPU
     else:
         print('Using CPU')
         DEVICE = torch.device('cpu')
@@ -262,6 +265,8 @@ if __name__ == '__main__':
     parser.add_argument("--paper", action="store_true")
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--val_every", type=int, default=100)
+    parser.add_argument("--eta", type=int, default=100)
+    parser.add_argument("--emb_dim", type=int, default=100)
     args = parser.parse_args()
     if args.lit:
         if args.paper:
@@ -274,6 +279,8 @@ if __name__ == '__main__':
 
     EPOCHS = args.epochs
     VAL_EVERY = args.val_every
+    ETA = args.eta
+    EMB_DIM = args.emb_dim
 
     RUN_NAME = datetime.now().strftime("%m-%d_%H-%M") + "_" + model_type + "_" + dataset_name
 
@@ -281,12 +288,12 @@ if __name__ == '__main__':
     config = {'dataset': dataset,
               'epochs': EPOCHS,
               'val_every': VAL_EVERY,
-              'dim': 100,
+              'dim': EMB_DIM, # TODO: Try 200
               'lr': 0.00065,
               'batch_size': 256,
               'dropout': 0.2,
               'alpha': 0,
-              'eta': 100,
+              'eta': ETA, # TODO: Try higher
               'reg': False,
               'batch_norm': False}
 
@@ -353,7 +360,7 @@ if __name__ == '__main__':
     for ax, history, title in zip(axs.flatten(),
                                   [mrr_history, mr_history, hits10_history, hits5_history, hits3_history,
                                    hits1_history],
-                                  ["MRR", "MR", "Hits@10", "Hits@5", "Hits@3", "Hits@1"]):
+                                  ["MRR", "MR", "Hits@10", "Hits@5", "Hits@3", "Hits@1"])[1:]:
         ax.plot(epochs, history)
         ax.set_title(f"{title} history")
         ax.set_xlabel("Epoch")
