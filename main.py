@@ -291,16 +291,18 @@ if __name__ == '__main__':
     config = {'dataset': dataset,
               'epochs': EPOCHS,
               'val_every': VAL_EVERY,
-              'dim': EMB_DIM, # TODO: Try 200
+              'dim': EMB_DIM,
               'lr': 0.00065,
               'batch_size': 256,
               'dropout': 0.2,
               'alpha': 0,
-              'eta': ETA, # TODO: Try higher
+              'eta': ETA,
               'reg': False,
               'batch_norm': False}
 
-    # TODO: For DistMult+LiteralE config look at LiteralE paper
+    # Write config to file
+    with open(f"results/{RUN_NAME}_config.json", "w+") as f:
+        json.dump(config, f)
 
     # 14000, 1, 300 -> 14000, 300
     dataset.features_txt = dataset.features_txt.squeeze()
@@ -331,7 +333,6 @@ if __name__ == '__main__':
 
     # test model
     print("Start testing...")
-    # TODO: Nicht nur auf 5000 sondern auf allen Tripeln evaluieren
     mr, mrr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                       dataset,
                                                                       dataset.edge_index_test,
