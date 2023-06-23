@@ -6,6 +6,9 @@ import os.path as osp
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+import os
+
+os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 
 from tqdm import tqdm
 
@@ -360,8 +363,8 @@ if __name__ == '__main__':
     for ax, history, title in zip(axs.flatten(),
                                   [mrr_history, mr_history, hits10_history, hits5_history, hits3_history,
                                    hits1_history],
-                                  ["MRR", "MR", "Hits@10", "Hits@5", "Hits@3", "Hits@1"])[1:]:
-        ax.plot(epochs, history)
+                                  ["MRR", "MR", "Hits@10", "Hits@5", "Hits@3", "Hits@1"]):
+        ax.plot(epochs[1:], history[1:])
         ax.set_title(f"{title} history")
         ax.set_xlabel("Epoch")
         ax.set_ylabel(title)
