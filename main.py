@@ -265,17 +265,13 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--lit", action="store_true")
-    parser.add_argument("--paper", action="store_true")
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--val_every", type=int, default=100)
     parser.add_argument("--eta", type=int, default=100)
     parser.add_argument("--emb_dim", type=int, default=100)
     args = parser.parse_args()
     if args.lit:
-        if args.paper:
-            model_type = "DistMultLitPaper"
-        else:
-            model_type = "DistMultLit"
+        model_type = "DistMultLit"
     else:
         model_type = "DistMult"
     print(f"Model type: {model_type}")
@@ -314,12 +310,6 @@ if __name__ == '__main__':
                                dataset.features_num.to(DEVICE),
                                dataset.features_txt.to(DEVICE),
                                config['dim'])
-    elif model_type == "DistMultLitPaper":
-        model_lp = DistMultLitFromPaper(dataset.num_entities,
-                                        dataset.num_relations,
-                                        dataset.features_num.to(DEVICE),
-                                        dataset.features_txt.to(DEVICE),
-                                        config['dim'])
     else:
         model_lp = DistMult(dataset.num_entities, dataset.num_relations, config['dim'])
     model_lp.to(DEVICE)

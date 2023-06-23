@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.nn.init import xavier_normal_
 
 
 class DistMult(nn.Module):
@@ -122,95 +121,6 @@ class DistMultLit(nn.Module):
         e2_emb = self.dp(e2_emb)
 
         out = torch.sigmoid(torch.sum(e1_emb * r_emb * e2_emb, dim=1))
-        out = torch.flatten(out)
-
-        return out
-
-
-##############################################################################################################
-# Paper DistMultLit
-##############################################################################################################
-
-class GateMulti(nn.Module):
-
-    def __init__(self, emb_size, num_lit_size, txt_lit_size, gate_activation=torch.sigmoid):
-        super(GateMulti, self).__init__()
-
-        self.emb_size = emb_size
-        self.num_lit_size = num_lit_size
-        self.txt_lit_size = txt_lit_size
-
-        self.gate_activation = gate_activation
-        self.g = nn.Linear(emb_size+num_lit_size+txt_lit_size, emb_size)
-
-        self.gate_ent = nn.Linear(emb_size, emb_size, bias=False)
-        self.gate_num_lit = nn.Linear(num_lit_size, emb_size, bias=False)
-        self.gate_txt_lit = nn.Linear(txt_lit_size, emb_size, bias=False)
-        self.gate_bias = nn.Parameter(torch.zeros(emb_size))
-
-    def forward(self, x_ent, x_lit_num, x_lit_txt):
-        x = torch.cat([x_ent, x_lit_num, x_lit_txt], 1)
-        g_embedded = torch.tanh(self.g(x))
-        gate = self.gate_activation(self.gate_ent(x_ent) + self.gate_num_lit(x_lit_num) + self.gate_txt_lit(x_lit_txt) + self.gate_bias)
-        output = (1-gate) * x_ent + gate * g_embedded
-
-        return output
-
-
-class DistMultLitFromPaper(torch.nn.Module):
-
-    def __init__(self, num_entities, num_relations, numerical_literals, text_literals, embedding_dim,
-                 dropout=0.2, batch_norm=False):
-        super(DistMultLitFromPaper, self).__init__()
-
-        self.emb_dim = embedding_dim
-
-        self.emb_e = torch.nn.Embedding(num_entities, self.emb_dim, padding_idx=0)
-        self.emb_rel = torch.nn.Embedding(num_relations, self.emb_dim, padding_idx=0)
-
-        # LiteralE's g
-        self.numerical_literals = numerical_literals
-        self.text_literals = text_literals
-        self.emb_lit = GateMulti(self.emb_dim, self.numerical_literals.size(1), self.text_literals.size(1))
-
-        # Dropout + loss
-        self.inp_drop = torch.nn.Dropout(dropout)
-        self.loss = torch.nn.BCELoss()
-
-    def init(self):
-        xavier_normal_(self.emb_e.weight.data)
-        xavier_normal_(self.emb_rel.weight.data)
-
-    def forward(self, e1, rel, e2):
-        e1_emb = self.emb_e(e1)
-        rel_emb = self.emb_rel(rel)
-        e2_emb = self.emb_e(e2)
-
-        e1_emb = e1_emb.view(-1, self.emb_dim)
-        rel_emb = rel_emb.view(-1, self.emb_dim)
-        e2_emb = e2_emb.view(-1, self.emb_dim)
-
-        # Begin literals
-        # --------------
-        e1_num_lit = self.numerical_literals[e1.view(-1)]
-        e1_txt_lit = self.text_literals[e1.view(-1)]
-        e1_emb = self.emb_lit(e1_emb, e1_num_lit, e1_txt_lit)
-        e2_num_lit = self.numerical_literals[e2.view(-1)]
-        e2_txt_lit = self.text_literals[e2.view(-1)]
-        e2_emb = self.emb_lit(e2_emb, e2_num_lit, e2_txt_lit)
-        # --------------
-        # End literals
-
-        e1_emb = self.inp_drop(e1_emb)
-        rel_emb = self.inp_drop(rel_emb)
-        e2_emb = self.inp_drop(e2_emb)
-
-        # pred = torch.mm(e1_emb*rel_emb, e2_emb.t())
-        # pred = torch.sigmoid(pred)
-
-        # return pred
-
-        out = torch.sigmoid(torch.sum(e1_emb * rel_emb * e2_emb, dim=1))
         out = torch.flatten(out)
 
         return out
