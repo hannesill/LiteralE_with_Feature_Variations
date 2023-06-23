@@ -281,7 +281,7 @@ if __name__ == '__main__':
     ETA = args.eta
     EMB_DIM = args.emb_dim
 
-    RUN_NAME = datetime.now().strftime("%m-%d_%H-%M") + "_" + model_type + "_" + dataset_name
+    RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + dataset_name
 
     # default config (best for DistMult)
     config = {'dataset': dataset,
@@ -298,7 +298,9 @@ if __name__ == '__main__':
 
     # Write config to file
     with open(f"results/{RUN_NAME}_config.json", "w+") as f:
-        json.dump(config, f)
+        json_config = config.copy()
+        json_config['dataset'] = dataset_name
+        json.dump(json_config, f)
 
     # 14000, 1, 300 -> 14000, 300
     dataset.features_txt = dataset.features_txt.squeeze()
