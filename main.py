@@ -13,7 +13,7 @@ os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 from tqdm import tqdm
 
 from dataset import LiteralLinkPredDataset
-from models import DistMult, DistMultLit, DistMultLitFromPaper
+from models import DistMult, DistMultLit
 
 
 def negative_sampling(edge_idxs, num_nodes, eta=1):
