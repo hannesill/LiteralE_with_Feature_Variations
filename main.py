@@ -8,6 +8,8 @@ import time
 import matplotlib.pyplot as plt
 import os
 
+from torch.optim import lr_scheduler
+
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 
 from tqdm import tqdm
@@ -39,30 +41,22 @@ def negative_sampling(edge_idxs, num_nodes, eta=1):
     return neg_edge_index
 
 
-def train_standard_lp(config, model_lp):
+def train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_index_batches, edge_type_batches):
     """
     Train a standard link prediction model.
 
     :param config: dictionary with configuration parameters (dataset, batch_size, num_epochs, learning_rate,...)
     :param model_lp: PyTorch model for link prediction
+    :param loss_function_model: loss function for link prediction
+    :param optimizer: optimizer for link prediction
+    :param edge_index_batches: list of torch.tensor of shape (2, batch_size)
+    :param edge_type_batches: list of torch.tensor of shape (batch_size)
     :return: Nothing
     """
     model_lp.train()
     start = time.time()
 
     dataset = config['dataset']
-
-    loss_function_model = torch.nn.BCELoss(reduction='mean')
-    if config['alpha'] > 0:
-        optimizer = torch.optim.Adam(list(model_lp.parameters()), lr=config['lr'])
-    else:
-        optimizer = torch.optim.Adam(model_lp.parameters(), lr=config['lr'])
-
-    train_edge_index_t = dataset.edge_index_train.t().to(DEVICE)
-    train_edge_type = dataset.edge_type_train.to(DEVICE)
-
-    edge_index_batches = torch.split(train_edge_index_t, config['batch_size'])
-    edge_type_batches = torch.split(train_edge_type, config['batch_size'])
 
     batch_indices = np.arange(len(edge_index_batches))
     np.random.shuffle(batch_indices)
@@ -207,6 +201,18 @@ def train_lp_objective(config, model_lp):
                "val_hits3": [],
                "val_hits1": []}
 
+    loss_function_model = torch.nn.BCELoss(reduction='mean')
+    optimizer = torch.optim.Adam(model_lp.parameters(), lr=config['lr'])
+
+    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=config['lr'], end_factor=config['lr'] * 0.25,
+                                      total_iters=config['epochs'])
+
+    train_edge_index_t = dataset.edge_index_train.t().to(DEVICE)
+    train_edge_type = dataset.edge_type_train.to(DEVICE)
+
+    edge_index_batches = torch.split(train_edge_index_t, config['batch_size'])
+    edge_type_batches = torch.split(train_edge_type, config['batch_size'])
+
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Evaluating
         if epoch == 1 or epoch % config['val_every'] == 0:
@@ -236,7 +242,9 @@ def train_lp_objective(config, model_lp):
 
         # Training
         print(f"--> Epoch {epoch}")
-        train_standard_lp(config, model_lp)
+
+        train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_index_batches, edge_type_batches)
+        scheduler.step()
 
 
 if __name__ == '__main__':
@@ -291,7 +299,6 @@ if __name__ == '__main__':
               'lr': 0.00065,
               'batch_size': 256,
               'dropout': 0.2,
-              'alpha': 0,
               'eta': ETA,
               'reg': False,
               'batch_norm': False}
