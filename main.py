@@ -205,7 +205,7 @@ def train_lp_objective(config, model_lp):
     optimizer = torch.optim.Adam(model_lp.parameters(), lr=config['lr'])
 
     scheduler = lr_scheduler.LinearLR(optimizer, start_factor=config['lr'], end_factor=config['lr'] * 0.25,
-                                      total_iters=config['epochs'])
+                                      total_iters=config['epochs'] - 150)
 
     train_edge_index_t = dataset.edge_index_train.t().to(DEVICE)
     train_edge_type = dataset.edge_type_train.to(DEVICE)
@@ -244,7 +244,8 @@ def train_lp_objective(config, model_lp):
         print(f"--> Epoch {epoch}")
 
         train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_index_batches, edge_type_batches)
-        scheduler.step()
+        if epoch > 150:
+            scheduler.step()
 
 
 if __name__ == '__main__':
