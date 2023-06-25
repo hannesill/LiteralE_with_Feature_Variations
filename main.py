@@ -69,16 +69,18 @@ def train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_ind
 
         edge_idxs_neg = negative_sampling(edge_idxs, dataset.num_entities, eta=config['eta'])
 
-        out_pos = model_lp.forward(edge_idxs[:, 0], relation_idx, edge_idxs[:, 1])
-        out_neg = model_lp.forward(edge_idxs_neg[:, 0], relation_idx.repeat(config['eta']), edge_idxs_neg[:, 1])
+        out_pos, reg_pos = model_lp.forward(edge_idxs[:, 0], relation_idx, edge_idxs[:, 1])
+        out_neg, reg_neg = model_lp.forward(edge_idxs_neg[:, 0], relation_idx.repeat(config['eta']), edge_idxs_neg[:, 1])
 
         out = torch.cat([out_pos, out_neg], dim=0)
         gt = torch.cat([torch.ones(len(relation_idx)), torch.zeros(len(relation_idx) * config['eta'])], dim=0).to(
             DEVICE)
+        reg = (reg_pos + reg_neg) / 2
 
-        # print('size lp:', gt.size())
+        print(reg_pos, reg_neg)
 
         loss = loss_function_model(out, gt)
+        loss = loss + reg * config['reg_weight']
 
         loss_total += loss.item()
         loss.backward()
@@ -134,7 +136,7 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
         eval_edge_typ_tensor = torch.full_like(tail, fill_value=rel).to(DEVICE)
 
         # Score all triples (one true triple and all corrupted triples)
-        out = model_lp.forward(head.to(DEVICE), eval_edge_typ_tensor.to(DEVICE), tail.to(DEVICE))
+        out, _ = model_lp.forward(head.to(DEVICE), eval_edge_typ_tensor.to(DEVICE), tail.to(DEVICE))
 
         # Compute the rank of the true triple
         rank = compute_rank(out)
@@ -163,7 +165,7 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
         eval_edge_typ_tensor = torch.full_like(head, fill_value=rel).to(DEVICE)
 
         # Score all triples (one true triple and all corrupted triples)
-        out = model_lp.forward(head.to(DEVICE), eval_edge_typ_tensor.to(DEVICE), tail.to(DEVICE))
+        out, _ = model_lp.forward(head.to(DEVICE), eval_edge_typ_tensor.to(DEVICE), tail.to(DEVICE))
 
         # Compute the rank of the true triple
         rank = compute_rank(out)
@@ -215,7 +217,7 @@ def train_lp_objective(config, model_lp):
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Evaluating
-        if epoch == 1 or epoch % config['val_every'] == 0:
+        if epoch == 2 or epoch % config['val_every'] == 0:
             print("Evaluating model...")
             mr, mrr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                               dataset,
@@ -301,7 +303,8 @@ if __name__ == '__main__':
               'batch_size': 256,
               'dropout': 0.2,
               'eta': ETA,
-              'reg': False,
+              'reg': True,
+              'reg_weight': 0.1,
               'batch_norm': False}
 
     # Write config to file
@@ -319,9 +322,17 @@ if __name__ == '__main__':
                                dataset.num_relations,
                                dataset.features_num.to(DEVICE),
                                dataset.features_txt.to(DEVICE),
-                               config['dim'])
+                               config['dim'],
+                               config['dropout'],
+                               config['batch_norm'],
+                               config['reg'],)
     else:
-        model_lp = DistMult(dataset.num_entities, dataset.num_relations, config['dim'])
+        model_lp = DistMult(dataset.num_entities,
+                            dataset.num_relations,
+                            config['dim'],
+                            config['dropout'],
+                            config['batch_norm'],
+                            config['reg'],)
     model_lp.to(DEVICE)
 
     print(dataset.num_entities, dataset.num_relations)

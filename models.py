@@ -3,7 +3,7 @@ from torch import nn
 
 
 class DistMult(nn.Module):
-    def __init__(self, num_entities, num_relations, embedding_dim, dropout=0.2, batch_norm=False):
+    def __init__(self, num_entities, num_relations, embedding_dim, dropout=0.2, batch_norm=False, reg=False):
         super().__init__()
         self.batch_norm = batch_norm
         self.entity_embedding = nn.Embedding(num_entities, embedding_dim)
@@ -11,6 +11,7 @@ class DistMult(nn.Module):
 
         self.dp_ent = nn.Dropout(dropout)
         self.dp_rel = nn.Dropout(dropout)
+        self.reg = reg
 
         self.bn_head = nn.BatchNorm1d(embedding_dim)
         self.bn_rel = nn.BatchNorm1d(embedding_dim)
@@ -33,7 +34,13 @@ class DistMult(nn.Module):
         out = torch.sigmoid(torch.sum(e1_emb * r_emb * e2_emb, dim=1))
         out = torch.flatten(out)
 
-        return out
+        if self.reg:
+            # Herre we don't use reg, but we could
+            reg = 0.0
+        else:
+            reg = 0.0
+
+        return out, reg
 
 
 ##############################################################################################################
@@ -59,15 +66,15 @@ class Gate(nn.Module):
         return output
 
 
-# TODO (wieder einbauen): Regularization (nicht analysieren, bring nix)
 # TODO (optional): early stopping
 class DistMultLit(nn.Module):
 
     def __init__(self, num_entities, num_relations, numerical_literals, text_literals, embedding_dim,
-                 dropout=0.2, batch_norm=False):
+                 dropout=0.2, batch_norm=False, reg=False):
         super(DistMultLit, self).__init__()
         # Initialize parameters
         self.batch_norm = batch_norm
+        self.reg = reg
         self.numerical_literals = numerical_literals
         self.text_literals = text_literals
 
@@ -123,4 +130,9 @@ class DistMultLit(nn.Module):
         out = torch.sigmoid(torch.sum(e1_emb * r_emb * e2_emb, dim=1))
         out = torch.flatten(out)
 
-        return out
+        if self.reg:
+            reg = (torch.mean(e1_emb ** 2) + torch.mean(r_emb ** 2) + torch.mean(e2_emb ** 2)) / 3
+        else:
+            reg = 0.0
+
+        return out, reg
