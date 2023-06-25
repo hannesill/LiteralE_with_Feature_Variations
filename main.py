@@ -77,8 +77,6 @@ def train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_ind
             DEVICE)
         reg = (reg_pos + reg_neg) / 2
 
-        print(reg_pos, reg_neg)
-
         loss = loss_function_model(out, gt)
         loss = loss + reg * config['reg_weight']
 
@@ -206,8 +204,8 @@ def train_lp_objective(config, model_lp):
     loss_function_model = torch.nn.BCELoss(reduction='mean')
     optimizer = torch.optim.Adam(model_lp.parameters(), lr=config['lr'])
 
-    # scheduler = lr_scheduler.LinearLR(optimizer, start_factor=config['lr'], end_factor=config['lr'] * 0.25,
-                                      # total_iters=config['epochs'] - 150)
+    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.25,
+                                      total_iters=config['epochs'] - 150)
 
     train_edge_index_t = dataset.edge_index_train.t().to(DEVICE)
     train_edge_type = dataset.edge_type_train.to(DEVICE)
@@ -217,7 +215,7 @@ def train_lp_objective(config, model_lp):
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Evaluating
-        if epoch == 2 or epoch % config['val_every'] == 0:
+        if epoch == 1 or epoch % config['val_every'] == 0:
             print("Evaluating model...")
             mr, mrr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
                                                                               dataset,
@@ -246,8 +244,8 @@ def train_lp_objective(config, model_lp):
         print(f"--> Epoch {epoch}")
 
         train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_index_batches, edge_type_batches)
-        # if epoch > 150:
-        #    scheduler.step()
+        if epoch > 150:
+            scheduler.step()
 
 
 if __name__ == '__main__':
