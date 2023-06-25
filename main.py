@@ -280,6 +280,7 @@ if __name__ == '__main__':
     parser.add_argument("--val_every", type=int, default=100)
     parser.add_argument("--eta", type=int, default=100)
     parser.add_argument("--emb_dim", type=int, default=100)
+    parser.add_argument("--reg", action="store_true")
     args = parser.parse_args()
     if args.lit:
         model_type = "DistMultLit"
@@ -291,6 +292,10 @@ if __name__ == '__main__':
     VAL_EVERY = args.val_every
     ETA = args.eta
     EMB_DIM = args.emb_dim
+    if args.reg:
+        REG = True
+    else:
+        REG = False
 
     RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + dataset_name
 
@@ -303,7 +308,7 @@ if __name__ == '__main__':
               'batch_size': 256,
               'dropout': 0.2,
               'eta': ETA,
-              'reg': True,
+              'reg': REG,
               'reg_weight': 0.1,
               'batch_norm': False}
 
