@@ -1,0 +1,1 @@
+{"dataset": "fb15k-237", "epochs": 1000, "val_every": 100, "dim": 200, "lr": 0.00065, "batch_size": 256, "dropout": 0.2, "eta": 400, "reg": false, "batch_norm": false}
