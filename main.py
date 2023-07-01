@@ -54,7 +54,6 @@ def train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_ind
     :return: Nothing
     """
     model_lp.train()
-    start = time.time()
 
     dataset = config['dataset']
 
@@ -84,8 +83,6 @@ def train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_ind
         loss.backward()
         optimizer.step()
 
-    end = time.time()
-    print('elapsed time:', end - start)
     print('loss:', loss_total / len(edge_index_batches))
 
 
@@ -186,6 +183,31 @@ def compute_mrr_triple_scoring(model_lp, dataset, eval_edge_index, eval_edge_typ
     return mr, mrr, hits_at_10, hits_at_5, hits_at_3, hits_at_1
 
 
+def evaluate_lp_objective(model_lp, epoch, history, dataset):
+    print("Evaluating model...")
+    mr, mrr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
+                                                                      dataset,
+                                                                      dataset.edge_index_val,
+                                                                      dataset.edge_type_val,
+                                                                      fast=False)
+    print('val mr:', mr, 'mrr:', mrr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
+
+    # Save validation metrics
+    history["epoch"].append(epoch)
+    history["val_mrr"].append(mrr)
+    history["val_mr"].append(mr)
+    history["val_hits10"].append(hits10)
+    history["val_hits5"].append(hits5)
+    history["val_hits3"].append(hits3)
+    history["val_hits1"].append(hits1)
+
+    # Save history dictionary
+    with open(f"results/{RUN_NAME}_history.json", "w+") as f:
+        json.dump(history, f)
+
+    # Save model
+    torch.save(model_lp.state_dict(), f"results/{RUN_NAME}_model.pt")
+
 def train_lp_objective(config, model_lp):
     dataset = config['dataset']
 
@@ -199,7 +221,8 @@ def train_lp_objective(config, model_lp):
                "val_hits10": [],
                "val_hits5": [],
                "val_hits3": [],
-               "val_hits1": []}
+               "val_hits1": [],
+               "train_time": []}
 
     loss_function_model = torch.nn.BCELoss(reduction='mean')
     optimizer = torch.optim.Adam(model_lp.parameters(), lr=config['lr'])
@@ -213,39 +236,29 @@ def train_lp_objective(config, model_lp):
     edge_index_batches = torch.split(train_edge_index_t, config['batch_size'])
     edge_type_batches = torch.split(train_edge_type, config['batch_size'])
 
+    # Evaluate model before training
+    evaluate_lp_objective(model_lp, 0, history, dataset)
+
     for epoch in range(start_epoch, config['epochs'] + 1):
-        # Evaluating
-        if epoch == 1 or epoch % config['val_every'] == 0:
-            print("Evaluating model...")
-            mr, mrr, hits10, hits5, hits3, hits1 = compute_mrr_triple_scoring(model_lp,
-                                                                              dataset,
-                                                                              dataset.edge_index_val,
-                                                                              dataset.edge_type_val,
-                                                                              fast=False)
-            print('val mr:', mr, 'mrr:', mrr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
-
-            # Save validation metrics
-            history["epoch"].append(epoch)
-            history["val_mrr"].append(mrr)
-            history["val_mr"].append(mr)
-            history["val_hits10"].append(hits10)
-            history["val_hits5"].append(hits5)
-            history["val_hits3"].append(hits3)
-            history["val_hits1"].append(hits1)
-
-            # Save history dictionary
-            with open(f"results/{RUN_NAME}_history.json", "w+") as f:
-                json.dump(history, f)
-
-            # Save model
-            torch.save(model_lp.state_dict(), f"results/{RUN_NAME}_model.pt")
-
         # Training
         print(f"--> Epoch {epoch}")
+        start = time.time()
 
         train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_index_batches, edge_type_batches)
+
+        end = time.time()
+        print('elapsed time:', end - start)
+
+        if epoch == 1:
+            history["train_time"].append(end - start)
+
         if epoch > 150:
             scheduler.step()
+
+        # Evaluating
+        if epoch % config['val_every'] == 0:
+            history["train_time"].append(end - start)
+            evaluate_lp_objective(model_lp, epoch, history, dataset)
 
 
 if __name__ == '__main__':
@@ -354,13 +367,22 @@ if __name__ == '__main__':
                                                                       fast=False)
     print('test mr:', mr, 'mrr:', mrr, 'hits@10:', hits10, 'hits@5:', hits5, 'hits@3:', hits3, 'hits@1:', hits1)
 
-    # Save test results
-    with open(f"results/{RUN_NAME}_test_results.txt", "w") as f:
-        f.write(f"test mr: {mr}, mrr: {mrr}, hits@10: {hits10}, hits@5: {hits5}, hits@3: {hits3}, hits@1: {hits1}")
-
     # Load history dictionary
     with open(f"results/{RUN_NAME}_history.json", "r") as f:
         history = json.load(f)
+
+    # Calc average train time
+    avg_train_time = np.mean(history["train_time"])
+
+    # Save test results
+    with open(f"results/{RUN_NAME}_test_results.txt", "w") as f:
+        f.write(f"test mr: {mr:05.02f}\n"
+                f"mrr: {mrr:05.02f}\n"
+                f"hits@1: {hits1:05.4f}\n"
+                f"hits@3: {hits3:05.4f}\n"
+                f"hits@3: {hits5:05.4f}\n"
+                f"hits@10: {hits10:05.4f}\n"
+                f"avg_train_time: {avg_train_time:05.2f}")
 
     # Get validation metrics histories
     epochs = history["epoch"]
