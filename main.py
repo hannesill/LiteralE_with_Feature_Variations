@@ -376,8 +376,8 @@ if __name__ == '__main__':
 
     # Save test results
     with open(f"results/{RUN_NAME}_test_results.txt", "w") as f:
-        f.write(f"test mr: {mr:05.02f}\n"
-                f"mrr: {mrr:05.02f}\n"
+        f.write(f"test mr: {mr:05.2f}\n"
+                f"mrr: {mrr:05.2f}\n"
                 f"hits@1: {hits1:05.4f}\n"
                 f"hits@3: {hits3:05.4f}\n"
                 f"hits@3: {hits5:05.4f}\n"
