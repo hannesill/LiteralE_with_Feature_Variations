@@ -15,7 +15,7 @@ os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 from tqdm import tqdm
 
 from dataset import LiteralLinkPredDataset
-from models import DistMult, DistMultLit
+from models import DistMult, ComplEx, ConvE
 
 
 def negative_sampling(edge_idxs, num_nodes, eta=1):
@@ -69,7 +69,8 @@ def train_standard_lp(config, model_lp, loss_function_model, optimizer, edge_ind
         edge_idxs_neg = negative_sampling(edge_idxs, dataset.num_entities, eta=config['eta'])
 
         out_pos, reg_pos = model_lp.forward(edge_idxs[:, 0], relation_idx, edge_idxs[:, 1])
-        out_neg, reg_neg = model_lp.forward(edge_idxs_neg[:, 0], relation_idx.repeat(config['eta']), edge_idxs_neg[:, 1])
+        out_neg, reg_neg = model_lp.forward(edge_idxs_neg[:, 0], relation_idx.repeat(config['eta']),
+                                            edge_idxs_neg[:, 1])
 
         out = torch.cat([out_pos, out_neg], dim=0)
         gt = torch.cat([torch.ones(len(relation_idx)), torch.zeros(len(relation_idx) * config['eta'])], dim=0).to(
@@ -208,6 +209,7 @@ def evaluate_lp_objective(model_lp, epoch, history, dataset):
     # Save model
     torch.save(model_lp.state_dict(), f"results/{RUN_NAME}_model.pt")
 
+
 def train_lp_objective(config, model_lp):
     dataset = config['dataset']
 
@@ -286,6 +288,7 @@ if __name__ == '__main__':
     dataset = torch.load(f'data/{dataset_name}/processed.pt')
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--scoring", type=str, default="DistMult")
     parser.add_argument("--lit", action="store_true")
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--val_every", type=int, default=100)
@@ -293,10 +296,26 @@ if __name__ == '__main__':
     parser.add_argument("--emb_dim", type=int, default=100)
     parser.add_argument("--reg", action="store_true")
     args = parser.parse_args()
-    if args.lit:
-        model_type = "DistMultLit"
+
+    # Set model type
+    if not args.lit:
+        if args.scoring == "DistMult":
+            model_type = "DistMult"
+        elif args.scoring == "ComplEx":
+            model_type = "ComplEx"
+        elif args.scoring == "ConvE":
+            model_type = "ConvE"
+        else:
+            raise ValueError("Invalid scoring function")
     else:
-        model_type = "DistMult"
+        if args.scoring == "DistMult":
+            model_type = "DistMultLit"
+        elif args.scoring == "ComplEx":
+            model_type = "ComplExLit"
+        elif args.scoring == "ConvE":
+            model_type = "ConvELit"
+        else:
+            raise ValueError("Invalid scoring function")
     print(f"Model type: {model_type}")
 
     EPOCHS = args.epochs
@@ -332,23 +351,60 @@ if __name__ == '__main__':
     # 14000, 1, 300 -> 14000, 300
     dataset.features_txt = dataset.features_txt.squeeze()
 
-    # create model
-    if model_type == "DistMultLit":
-        model_lp = DistMultLit(dataset.num_entities,
-                               dataset.num_relations,
-                               dataset.features_num.to(DEVICE),
-                               dataset.features_txt.to(DEVICE),
-                               config['dim'],
-                               config['dropout'],
-                               config['batch_norm'],
-                               config['reg'],)
-    else:
+    # Create model
+    model_lp = None
+    if model_type == "DistMult":
         model_lp = DistMult(dataset.num_entities,
                             dataset.num_relations,
                             config['dim'],
-                            config['dropout'],
-                            config['batch_norm'],
-                            config['reg'],)
+                            dropout=config['dropout'],
+                            batch_norm=config['batch_norm'],
+                            reg=['reg'])
+    elif model_type == "DistMultLit":
+        model_lp = DistMult(dataset.num_entities,
+                            dataset.num_relations,
+                            config['dim'],
+                            lit=True,
+                            numerical_literals=dataset.features_num,
+                            text_literals=dataset.features_txt,
+                            dropout=config['dropout'],
+                            batch_norm=config['batch_norm'],
+                            reg=['reg'])
+    elif model_type == "ComplEx":
+        model_lp = ComplEx(dataset.num_entities,
+                           dataset.num_relations,
+                           config['dim'],
+                           dropout=config['dropout'],
+                           batch_norm=config['batch_norm'],
+                           reg=['reg'])
+    elif model_type == "ComplExLit":
+        model_lp = ComplEx(dataset.num_entities,
+                           dataset.num_relations,
+                           config['dim'],
+                           lit=True,
+                           numerical_literals=dataset.features_num,
+                           text_literals=dataset.features_txt,
+                           dropout=config['dropout'],
+                           batch_norm=config['batch_norm'],
+                           reg=['reg'])
+    elif model_type == "ConvE":
+        model_lp = ConvE(dataset.num_entities,
+                         dataset.num_relations,
+                         config['dim'],
+                         dropout=config['dropout'],
+                         reg=['reg'])
+    elif model_type == "ConvELit":
+        model_lp = ConvE(dataset.num_entities,
+                         dataset.num_relations,
+                         config['dim'],
+                         lit=True,
+                         numerical_literals=dataset.features_num,
+                         text_literals=dataset.features_txt,
+                         dropout=config['dropout'],
+                         reg=['reg'])
+    else:
+        raise ValueError("Invalid model type")
+
     model_lp.to(DEVICE)
 
     print(dataset.num_entities, dataset.num_relations)
