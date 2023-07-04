@@ -121,12 +121,12 @@ class ComplEx(nn.Module):
 
     def forward(self, e1_idx, rel_idx, e2_idx):
         # Embeddings
-        e1_emb_real = self.entity_embedding(e1_idx)
-        e1_emb_img = self.entity_embedding(e1_idx)
-        r_emb_real = self.rel_embedding(rel_idx)
-        r_emb_img = self.rel_embedding(rel_idx)
-        e2_emb_real = self.entity_embedding(e2_idx)
-        e2_emb_img = self.entity_embedding(e2_idx)
+        e1_emb_real = self.entity_embedding_real(e1_idx)
+        e1_emb_img = self.entity_embedding_img(e1_idx)
+        r_emb_real = self.rel_embedding_real(rel_idx)
+        r_emb_img = self.rel_embedding_img(rel_idx)
+        e2_emb_real = self.entity_embedding_real(e2_idx)
+        e2_emb_img = self.entity_embedding_img(e2_idx)
 
         # Batch normalization # TODO: Before or after literal embeddings?
         if self.batch_norm:
@@ -191,7 +191,7 @@ class ConvE(torch.nn.Module):
             self.literal_embeddings = Gate(embedding_dim, numerical_literals.shape[1], text_literals.shape[1])
 
         self.conv1 = torch.nn.Conv2d(1, 32, (3, 3), 1, 0, bias=bias)
-        self.register_parameter('b', nn.Parameter(torch.zeros(num_entities)))
+        self.register_parameter('b', nn.Parameter(torch.zeros(embedding_dim)))
         self.fc = torch.nn.Linear(10368, embedding_dim)
 
         self.bn0 = torch.nn.BatchNorm2d(1)
@@ -206,11 +206,9 @@ class ConvE(torch.nn.Module):
         nn.init.xavier_normal_(self.rel_embedding.weight.data)
 
     def forward(self, e1_idx, rel_idx, e2_idx):
-        # TODO: Woher hat LiteralE code die 10 und 20? In ConvE Implementierung stehen da emb_dim_1 und emb_dim_2.
-        #  Da wäre aber die Frage was sind das für Dimensionen?
-        e1_emb = self.entity_embedding(e1_idx).view(-1, 1, 10, 20)
-        rel_emb = self.rel_embedding(rel_idx).view(-1, 1, 10, 20)
-        e2_emb = self.entity_embedding(e2_idx).view(-1, 1, 10, 20)
+        e1_emb = self.entity_embedding(e1_idx)
+        rel_emb = self.rel_embedding(rel_idx)
+        e2_emb = self.entity_embedding(e2_idx)
 
         if self.lit:
             # Get embeddings for numerical and text literals
@@ -223,22 +221,33 @@ class ConvE(torch.nn.Module):
             e2_text_lit = self.text_literals[e2_idx]
             e2_emb = self.literal_embeddings(e2_emb, e2_num_lit, e2_text_lit)
 
+        # Reshape embeddings
+        # TODO: Woher hat LiteralE code die 10 und 20? In ConvE Implementierung stehen da emb_dim_1 und emb_dim_2.
+        #  Dann wäre aber die Frage was sind das für Dimensionen?
+        e1_emb = e1_emb.view(-1, 1, 10, 20)
+        rel_emb = rel_emb.view(-1, 1, 10, 20)
+
         stacked_inputs = torch.cat([e1_emb, rel_emb], 2)
 
         stacked_inputs = self.bn0(stacked_inputs)
-        x = self.inp_drop(stacked_inputs)
+        x = self.dp(stacked_inputs)
+        print(x.shape)
         x = self.conv1(x)
         x = self.bn1(x)
         x = torch.relu(x)
-        x = self.feature_map_drop(x)
+        x = self.dp(x)
         x = x.view(x.shape[0], -1)
         x = self.fc(x)
-        x = self.hidden_drop(x)
+        x = self.dp(x)
         x = self.bn2(x)
         x = torch.relu(x)
-        x = torch.sum(x * e2_emb, dim=1)  # TODO: Passt das anstelle von: torch.mm(x, self.entity_embedding.weight.transpose(1, 0)) ?
+        print(x.shape, e2_emb.shape)
+        x = torch.mm(x, e2_emb.t())  # TODO: Wie ist hier die Formel, sodass die Dimensionen passen?
+        print(x.shape)
         x += self.b.expand_as(x)
         out = torch.sigmoid(x)
+
+        print(out.shape)
 
         # Regularization
         if self.reg:
