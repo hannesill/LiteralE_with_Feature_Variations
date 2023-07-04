@@ -365,8 +365,8 @@ if __name__ == '__main__':
                             dataset.num_relations,
                             config['dim'],
                             lit=True,
-                            numerical_literals=dataset.features_num,
-                            text_literals=dataset.features_txt,
+                            numerical_literals=dataset.features_num.to(DEVICE),
+                            text_literals=dataset.features_txt.to(DEVICE),
                             dropout=config['dropout'],
                             batch_norm=config['batch_norm'],
                             reg=['reg'])
@@ -382,8 +382,8 @@ if __name__ == '__main__':
                            dataset.num_relations,
                            config['dim'],
                            lit=True,
-                           numerical_literals=dataset.features_num,
-                           text_literals=dataset.features_txt,
+                           numerical_literals=dataset.features_num.to(DEVICE),
+                           text_literals=dataset.features_txt.to(DEVICE),
                            dropout=config['dropout'],
                            batch_norm=config['batch_norm'],
                            reg=['reg'])
@@ -398,8 +398,8 @@ if __name__ == '__main__':
                          dataset.num_relations,
                          config['dim'],
                          lit=True,
-                         numerical_literals=dataset.features_num,
-                         text_literals=dataset.features_txt,
+                         numerical_literals=dataset.features_num.to(DEVICE),
+                         text_literals=dataset.features_txt.to(DEVICE),
                          dropout=config['dropout'],
                          reg=['reg'])
     else:
