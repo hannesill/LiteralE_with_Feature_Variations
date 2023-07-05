@@ -239,7 +239,7 @@ def train_lp_objective(config, model_lp):
     edge_type_batches = torch.split(train_edge_type, config['batch_size'])
 
     # Evaluate model before training
-    evaluate_lp_objective(model_lp, 0, history, dataset)
+    # evaluate_lp_objective(model_lp, 0, history, dataset)
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Training
@@ -284,6 +284,7 @@ if __name__ == '__main__':
     parser.add_argument("--lit", action="store_true")
     parser.add_argument("--attr", action="store_true")
     parser.add_argument("--filter", type=int, default=0)
+    parser.add_argument("--cluster", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--val_every", type=int, default=100)
     parser.add_argument("--eta", type=int, default=100)
@@ -318,6 +319,7 @@ if __name__ == '__main__':
     EMB_DIM = args.emb_dim
     USE_ATTR_RELATIONS_INSTEAD_OF_LITERALS = args.attr
     LITERAL_FILTER_THRESHOLD = args.filter
+    LITERAL_TXT_CLUSTER = args.cluster
     if args.reg:
         REG = True
     else:
@@ -352,11 +354,11 @@ if __name__ == '__main__':
         json_config['dataset'] = dataset_name
         json.dump(json_config, f)
 
-    # 14000, 1, 300 -> 14000, 300
-    dataset.literals_txt = dataset.literals_txt.squeeze()
-
     if LITERAL_FILTER_THRESHOLD != 0:
         dataset.filter_literals_by_attr_relation_frequency(threshold=LITERAL_FILTER_THRESHOLD)
+
+    if LITERAL_TXT_CLUSTER != 0:
+        dataset.cluster_literals_txt(n_clusters=LITERAL_TXT_CLUSTER)
 
     if USE_ATTR_RELATIONS_INSTEAD_OF_LITERALS:
         literal_info_num = dataset.attr_relations_num.to(DEVICE)
