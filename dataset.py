@@ -16,7 +16,7 @@ class LiteralLinkPredDataset(Dataset):
     def __init__(self, triple_file, transform=None, target_transform=None):
         # Parameters
         self.triple_file = triple_file
-        self.embedding_dim = 300 # Mandated by Spacy
+        self.embedding_dim = 300  # Mandated by Spacy
         self.transform = transform
         self.target_transform = target_transform
 
@@ -89,7 +89,7 @@ class LiteralLinkPredDataset(Dataset):
         print('start loading numerical literals: E x R')
         attr_relations_num_unique = list(self.df_literals_num[1].unique())
 
-        print(len(attr_relations_num_unique))
+        print("Unique numerical attributive relations: ", len(attr_relations_num_unique))
 
         attr_relation_num_2_id = {attr_relations_num_unique[i]: i for i in range(len(attr_relations_num_unique))}
 
@@ -131,7 +131,7 @@ class LiteralLinkPredDataset(Dataset):
         attr_relations_txt_unique = list(self.df_literals_txt[1].unique())
         attr_relation_txt_2_id = {attr_relations_txt_unique[i]: i for i in range(len(attr_relations_txt_unique))}
 
-        print(len(attr_relations_txt_unique))
+        print("Unique textual attributive relations: ", len(attr_relations_txt_unique))
 
         # Map entities to ids
         self.df_literals_txt[0] = self.df_literals_txt[0].map(self.entity2id).astype(int)
@@ -169,6 +169,47 @@ class LiteralLinkPredDataset(Dataset):
 
         return features_txt, features_txt_attr
 
+    def filter_literals_by_attr_relation_frequency(self, threshold=100):
+        print(f"Filtering literals by attributive relation frequency with threshold {threshold}...")
+        # Count occurences of attributive relations
+        attr_relations_num_counts = self.df_literals_num[1].value_counts()
+        attr_relations_txt_counts = self.df_literals_txt[1].value_counts()
+
+        # Filter attributive relations by frequency
+        attr_relations_num_filtered = attr_relations_num_counts[attr_relations_num_counts > threshold].index
+        attr_relations_txt_filtered = attr_relations_txt_counts[attr_relations_txt_counts > threshold].index
+
+        print(f"Literals num before: {len(attr_relations_num_counts)} after: {len(attr_relations_num_filtered)}")
+        print(f"Literals txt before: {len(attr_relations_txt_counts)} after: {len(attr_relations_txt_filtered)}")
+
+        # Filter numerical literals
+        self.df_literals_num = self.df_literals_num[self.df_literals_num[1].isin(attr_relations_num_filtered)]
+        # Filter textual literals
+        self.df_literals_txt = self.df_literals_txt[self.df_literals_txt[1].isin(attr_relations_txt_filtered)]
+
+        # Convert tensors to dataframes
+        df_attr_relations = pd.DataFrame(self.attr_relations_num.numpy())
+        df_attr_relations_txt = pd.DataFrame(self.attr_relations_txt.numpy())
+
+        # Filter attributive relations
+        self.attr_relations_num = torch.tensor(df_attr_relations[attr_relations_num_filtered].to_numpy())
+        self.attr_relations_txt = torch.tensor(df_attr_relations_txt[attr_relations_txt_filtered].to_numpy())
+
+        return self
+
 
 if __name__ == '__main__':
-    dataset = LiteralLinkPredDataset('./data/fb15k-237')
+    print("Test variant 2")
+    dataset = torch.load(f'data/fb15k-237/processed.pt')
+
+    print(dataset.attr_relations_num.shape)
+    print(dataset.attr_relations_txt.shape)
+    print(dataset.df_literals_num.shape)
+    print(dataset.df_literals_txt.shape)
+
+    dataset.filter_literals_by_attr_relation_frequency()
+
+    print(dataset.attr_relations_num.shape)
+    print(dataset.attr_relations_txt.shape)
+    print(dataset.df_literals_num.shape)
+    print(dataset.df_literals_txt.shape)

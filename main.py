@@ -282,7 +282,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--scoring", type=str, default="DistMult")
     parser.add_argument("--lit", action="store_true")
-    parser.add_argument("--var", type=int, default=0)
+    parser.add_argument("--attr", action="store_true")
+    parser.add_argument("--filter", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--val_every", type=int, default=100)
     parser.add_argument("--eta", type=int, default=100)
@@ -315,7 +316,8 @@ if __name__ == '__main__':
     VAL_EVERY = args.val_every
     ETA = args.eta
     EMB_DIM = args.emb_dim
-    VAR = args.var
+    USE_ATTR_RELATIONS_INSTEAD_OF_LITERALS = args.attr
+    LITERAL_FILTER_THRESHOLD = args.filter
     if args.reg:
         REG = True
     else:
@@ -353,7 +355,10 @@ if __name__ == '__main__':
     # 14000, 1, 300 -> 14000, 300
     dataset.literals_txt = dataset.literals_txt.squeeze()
 
-    if VAR == 1:
+    if LITERAL_FILTER_THRESHOLD != 0:
+        dataset.filter_literals_by_attr_relation_frequency(threshold=LITERAL_FILTER_THRESHOLD)
+
+    if USE_ATTR_RELATIONS_INSTEAD_OF_LITERALS:
         literal_info_num = dataset.attr_relations_num.to(DEVICE)
         literal_info_txt = dataset.attr_relations_txt.to(DEVICE)
     else:
