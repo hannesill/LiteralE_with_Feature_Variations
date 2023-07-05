@@ -239,7 +239,7 @@ def train_lp_objective(config, model_lp):
     edge_type_batches = torch.split(train_edge_type, config['batch_size'])
 
     # Evaluate model before training
-    evaluate_lp_objective(model_lp, 0, history, dataset)
+    # evaluate_lp_objective(model_lp, 0, history, dataset)
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Training
@@ -279,17 +279,10 @@ if __name__ == '__main__':
         print('Using CPU')
         DEVICE = torch.device('cpu')
 
-    dataset_name = 'fb15k-237'
-    if not osp.isfile(f'data/{dataset_name}/processed.pt'):
-        print('Process dataset...')
-        dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
-        torch.save(dataset, f'data/{dataset_name}/processed.pt')
-    print('Load processed dataset...')
-    dataset = torch.load(f'data/{dataset_name}/processed.pt')
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--scoring", type=str, default="DistMult")
     parser.add_argument("--lit", action="store_true")
+    parser.add_argument("--var", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--val_every", type=int, default=100)
     parser.add_argument("--eta", type=int, default=100)
@@ -322,10 +315,19 @@ if __name__ == '__main__':
     VAL_EVERY = args.val_every
     ETA = args.eta
     EMB_DIM = args.emb_dim
+    VAR = args.var
     if args.reg:
         REG = True
     else:
         REG = False
+
+    dataset_name = 'fb15k-237'
+    if not osp.isfile(f'data/{dataset_name}/processed.pt'):
+        print('Process dataset...')
+        dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
+        torch.save(dataset, f'data/{dataset_name}/processed.pt')
+    print('Load processed dataset...')
+    dataset = torch.load(f'data/{dataset_name}/processed.pt')
 
     RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + dataset_name
 
@@ -349,7 +351,14 @@ if __name__ == '__main__':
         json.dump(json_config, f)
 
     # 14000, 1, 300 -> 14000, 300
-    dataset.features_txt = dataset.features_txt.squeeze()
+    dataset.literals_txt = dataset.literals_txt.squeeze()
+
+    if VAR == 1:
+        literal_info_num = dataset.attr_relations_num.to(DEVICE)
+        literal_info_txt = dataset.attr_relations_txt.to(DEVICE)
+    else:
+        literal_info_num = dataset.literals_num.to(DEVICE)
+        literal_info_txt = dataset.literals_txt.to(DEVICE)
 
     # Create model
     model_lp = None
@@ -365,8 +374,8 @@ if __name__ == '__main__':
                             dataset.num_relations,
                             config['dim'],
                             lit=True,
-                            numerical_literals=dataset.features_num.to(DEVICE),
-                            text_literals=dataset.features_txt.to(DEVICE),
+                            numerical_literals=literal_info_num,
+                            text_literals=literal_info_txt,
                             dropout=config['dropout'],
                             batch_norm=config['batch_norm'],
                             reg=['reg'])
@@ -382,8 +391,8 @@ if __name__ == '__main__':
                            dataset.num_relations,
                            config['dim'],
                            lit=True,
-                           numerical_literals=dataset.features_num.to(DEVICE),
-                           text_literals=dataset.features_txt.to(DEVICE),
+                           numerical_literals=literal_info_num,
+                           text_literals=literal_info_txt,
                            dropout=config['dropout'],
                            batch_norm=config['batch_norm'],
                            reg=['reg'])
@@ -398,8 +407,8 @@ if __name__ == '__main__':
                          dataset.num_relations,
                          config['dim'],
                          lit=True,
-                         numerical_literals=dataset.features_num.to(DEVICE),
-                         text_literals=dataset.features_txt.to(DEVICE),
+                         numerical_literals=literal_info_num,
+                         text_literals=literal_info_txt,
                          dropout=config['dropout'],
                          reg=['reg'])
     else:
@@ -408,7 +417,7 @@ if __name__ == '__main__':
     model_lp.to(DEVICE)
 
     print(dataset.num_entities, dataset.num_relations)
-    print(dataset.features_num.shape, dataset.features_txt.shape)
+    print(dataset.literals_num.shape, dataset.literals_txt.shape)
 
     # train model
     print("Start training...")
