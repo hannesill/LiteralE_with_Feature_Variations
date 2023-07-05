@@ -196,7 +196,9 @@ class LiteralLinkPredDataset(Dataset):
         self.attr_relations_num = torch.tensor(df_attr_relations[attr_relations_num_filtered].to_numpy())
         self.attr_relations_txt = torch.tensor(df_attr_relations_txt[attr_relations_txt_filtered].to_numpy())
 
-        # TODO: Filter literals_num and literals_txt
+        # Filter literals_num and literals_txt
+        self.literals_num = self.literals_num[:, attr_relations_num_filtered]
+        self.literals_txt = self.literals_txt[:, attr_relations_txt_filtered]
 
     def cluster_literals_txt(self, n_clusters=100):
         print(f"Clustering textual literals with {n_clusters} clusters...")

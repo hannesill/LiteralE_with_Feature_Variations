@@ -239,7 +239,7 @@ def train_lp_objective(config, model_lp):
     edge_type_batches = torch.split(train_edge_type, config['batch_size'])
 
     # Evaluate model before training
-    # evaluate_lp_objective(model_lp, 0, history, dataset)
+    evaluate_lp_objective(model_lp, 0, history, dataset)
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Training
