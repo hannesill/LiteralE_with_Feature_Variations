@@ -1,0 +1,7 @@
+test mr: 217.61
+mrr: 00.28
+hits@1: 0.1849
+hits@3: 0.3037
+hits@3: 0.3760
+hits@10: 0.4767
+avg_train_time: 19.99
