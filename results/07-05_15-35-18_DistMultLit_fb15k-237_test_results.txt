@@ -5,3 +5,5 @@ hits@3: 0.3105
 hits@3: 0.3758
 hits@10: 0.4684
 avg_train_time: 26.09
+
+Filter 100 & Attr

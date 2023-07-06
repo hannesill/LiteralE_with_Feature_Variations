@@ -121,7 +121,7 @@ class LiteralLinkPredDataset(Dataset):
         features_num = torch.stack(features_num)
         features_num_attr = torch.stack(features_num_attr)
 
-        # Normalize numerical literals
+        # Normalize numerical literals # TODO: Richtig?
         max_lit, min_lit = torch.max(features_num, dim=0).values, torch.min(features_num, dim=0).values
         features_num = (features_num - min_lit) / (max_lit - min_lit + 1e-8)
 
@@ -145,7 +145,6 @@ class LiteralLinkPredDataset(Dataset):
 
         # Extract embedding vectors for one textual literal value per entity and the attributive relations
         # TODO (optional): Take every literal feature and not just 1 -> take a look at LiteralE original impl
-        # TODO implement to use the non negative filter features_num_mask -> Moritz
         features_txt = []
         features_txt_attr = []
         for i in tqdm(range(len(self.entities))):
@@ -154,9 +153,10 @@ class LiteralLinkPredDataset(Dataset):
             features_txt_i = torch.zeros(len(attr_relations_txt_unique), self.embedding_dim)
             features_txt_attr_i = torch.zeros(len(attr_relations_txt_unique))
             for index, row in df_i.iterrows():
-                # Textual literal values: row[1] = attributive relation index, row[2] = literal value as embedding
+                # Textual literal values: row[1] = attributive relation index, row[2] = literal value
                 # TODO (optional): BERT embeddings ausprobieren
                 spacy_embedding = torch.tensor(nlp(row[2]).vector)
+                # TODO: Embedding size spacy mitgebbar?
                 features_txt_i[int(row[1])] = spacy_embedding
 
                 # One-hot encoding for attributive relations
@@ -183,22 +183,13 @@ class LiteralLinkPredDataset(Dataset):
         print(f"Literals num before: {len(attr_relations_num_counts)} after: {len(attr_relations_num_filtered)}")
         print(f"Literals txt before: {len(attr_relations_txt_counts)} after: {len(attr_relations_txt_filtered)}")
 
-        # Filter numerical literals
-        self.df_literals_num = self.df_literals_num[self.df_literals_num[1].isin(attr_relations_num_filtered)]
-        # Filter textual literals
-        self.df_literals_txt = self.df_literals_txt[self.df_literals_txt[1].isin(attr_relations_txt_filtered)]
-
-        # Convert tensors to dataframes
-        df_attr_relations = pd.DataFrame(self.attr_relations_num.numpy())
-        df_attr_relations_txt = pd.DataFrame(self.attr_relations_txt.numpy())
-
-        # Filter attributive relations
-        self.attr_relations_num = torch.tensor(df_attr_relations[attr_relations_num_filtered].to_numpy())
-        self.attr_relations_txt = torch.tensor(df_attr_relations_txt[attr_relations_txt_filtered].to_numpy())
-
         # Filter literals_num and literals_txt
         self.literals_num = self.literals_num[:, attr_relations_num_filtered]
         self.literals_txt = self.literals_txt[:, attr_relations_txt_filtered]
+
+        # Filter attributive relations
+        self.attr_relations_num = self.attr_relations_num[attr_relations_num_filtered]
+        self.attr_relations_txt = self.attr_relations_txt[attr_relations_txt_filtered]
 
     def cluster_literals_txt(self, n_clusters=100):
         print(f"Clustering textual literals with {n_clusters} clusters...")
@@ -212,11 +203,15 @@ class LiteralLinkPredDataset(Dataset):
             self.literals_txt[i, embeddings_cluster_labeled[i]] = 1
 
 
-
-
 if __name__ == '__main__':
+    dataset_name = 'fb15k-237'
+    if not osp.isfile(f'data/{dataset_name}/processed.pt'):
+        print('Process dataset...')
+        dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
+        torch.save(dataset, f'data/{dataset_name}/processed.pt')
+
     print("Test variant 2 – filtering")
-    dataset = torch.load(f'data/fb15k-237/processed.pt')
+    dataset = torch.load(f'data/{dataset_name}/processed.pt')
 
     print(dataset.attr_relations_num.shape)
     print(dataset.attr_relations_txt.shape)
@@ -232,7 +227,7 @@ if __name__ == '__main__':
 
     print("Test variant 3 – clustering")
 
-    dataset = torch.load(f'data/fb15k-237/processed.pt')
+    dataset = torch.load(f'data/{dataset_name}/processed.pt')
     dataset.cluster_literals_txt(10)
 
     print(dataset.literals_txt.shape)

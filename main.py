@@ -239,7 +239,7 @@ def train_lp_objective(config, model_lp):
     edge_type_batches = torch.split(train_edge_type, config['batch_size'])
 
     # Evaluate model before training
-    evaluate_lp_objective(model_lp, 0, history, dataset)
+    # evaluate_lp_objective(model_lp, 0, history, dataset)
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Training
@@ -281,19 +281,18 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--scoring", type=str, default="DistMult")
-    parser.add_argument("--lit", action="store_true")
-    parser.add_argument("--attr", action="store_true")
+    parser.add_argument("--lit_mode", type=str, default="none") # "none", "num", "txt", "all", "attr"
     parser.add_argument("--filter", type=int, default=0)
     parser.add_argument("--cluster", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--val_every", type=int, default=100)
-    parser.add_argument("--eta", type=int, default=100)
-    parser.add_argument("--emb_dim", type=int, default=100)
-    parser.add_argument("--reg", action="store_true")
+    parser.add_argument("--eta", type=int, default=200)
+    parser.add_argument("--emb_dim", type=int, default=200)
+    parser.add_argument("--reg", type=float, default=0.0)
     args = parser.parse_args()
 
     # Set model type
-    if not args.lit:
+    if args.lit_mode == "none":
         if args.scoring == "DistMult":
             model_type = "DistMult"
         elif args.scoring == "ComplEx":
@@ -317,13 +316,10 @@ if __name__ == '__main__':
     VAL_EVERY = args.val_every
     ETA = args.eta
     EMB_DIM = args.emb_dim
-    USE_ATTR_RELATIONS_INSTEAD_OF_LITERALS = args.attr
+    LITERAL_MODE = args.lit_mode
     LITERAL_FILTER_THRESHOLD = args.filter
     LITERAL_TXT_CLUSTER = args.cluster
-    if args.reg:
-        REG = True
-    else:
-        REG = False
+    REG = args.reg
 
     dataset_name = 'fb15k-237'
     if not osp.isfile(f'data/{dataset_name}/processed.pt'):
@@ -335,17 +331,19 @@ if __name__ == '__main__':
 
     RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + dataset_name
 
-    # default config (best for DistMult)
+    # default config
     config = {'dataset': dataset,
+              'lit_mode': LITERAL_MODE,
+              'filter': LITERAL_FILTER_THRESHOLD,
+              'cluster': LITERAL_TXT_CLUSTER,
               'epochs': EPOCHS,
               'val_every': VAL_EVERY,
               'dim': EMB_DIM,
+              'eta': ETA,
               'lr': 0.00065,
               'batch_size': 256,
               'dropout': 0.2,
-              'eta': ETA,
-              'reg': REG,
-              'reg_weight': 0.1,
+              'reg_weight': REG,
               'batch_norm': False}
 
     # Write config to file
@@ -360,12 +358,21 @@ if __name__ == '__main__':
     if LITERAL_TXT_CLUSTER != 0:
         dataset.cluster_literals_txt(n_clusters=LITERAL_TXT_CLUSTER)
 
-    if USE_ATTR_RELATIONS_INSTEAD_OF_LITERALS:
+    if LITERAL_MODE == "attr":
         literal_info_num = dataset.attr_relations_num.to(DEVICE)
         literal_info_txt = dataset.attr_relations_txt.to(DEVICE)
-    else:
+    elif LITERAL_MODE == "num":
+        literal_info_num = dataset.literals_num.to(DEVICE)
+        literal_info_txt = None
+    elif LITERAL_MODE == "txt":
+        literal_info_num = None
+        literal_info_txt = dataset.literals_txt.to(DEVICE)
+    elif LITERAL_MODE == "all":
         literal_info_num = dataset.literals_num.to(DEVICE)
         literal_info_txt = dataset.literals_txt.to(DEVICE)
+    else: # "none"
+        literal_info_num = None
+        literal_info_txt = None
 
     # Create model
     model_lp = None
@@ -375,49 +382,47 @@ if __name__ == '__main__':
                             config['dim'],
                             dropout=config['dropout'],
                             batch_norm=config['batch_norm'],
-                            reg=['reg'])
+                            reg_weight=config['reg_weight'])
     elif model_type == "DistMultLit":
         model_lp = DistMult(dataset.num_entities,
                             dataset.num_relations,
                             config['dim'],
-                            lit=True,
+                            lit_mode=config['lit_mode'],
                             numerical_literals=literal_info_num,
                             text_literals=literal_info_txt,
                             dropout=config['dropout'],
                             batch_norm=config['batch_norm'],
-                            reg=['reg'])
+                            reg_weight=config['reg_weight'])
     elif model_type == "ComplEx":
         model_lp = ComplEx(dataset.num_entities,
                            dataset.num_relations,
                            config['dim'],
                            dropout=config['dropout'],
                            batch_norm=config['batch_norm'],
-                           reg=['reg'])
+                           reg_weight=config['reg_weight'])
     elif model_type == "ComplExLit":
         model_lp = ComplEx(dataset.num_entities,
                            dataset.num_relations,
                            config['dim'],
-                           lit=True,
+                           lit=config['lit_mode'],
                            numerical_literals=literal_info_num,
                            text_literals=literal_info_txt,
                            dropout=config['dropout'],
                            batch_norm=config['batch_norm'],
-                           reg=['reg'])
+                           reg_weight=config['reg_weight'])
     elif model_type == "ConvE":
         model_lp = ConvE(dataset.num_entities,
                          dataset.num_relations,
-                         config['dim'],
                          dropout=config['dropout'],
-                         reg=['reg'])
+                         reg_weight=config['reg_weight'])
     elif model_type == "ConvELit":
         model_lp = ConvE(dataset.num_entities,
                          dataset.num_relations,
-                         config['dim'],
-                         lit=True,
+                         lit=config['lit_mode'],
                          numerical_literals=literal_info_num,
                          text_literals=literal_info_txt,
                          dropout=config['dropout'],
-                         reg=['reg'])
+                         reg_weight=config['reg_weight'])
     else:
         raise ValueError("Invalid model type")
 

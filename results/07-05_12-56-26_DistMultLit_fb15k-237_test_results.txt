@@ -5,3 +5,5 @@ hits@3: 0.2779
 hits@3: 0.3331
 hits@10: 0.4123
 avg_train_time: 51.81
+
+Attr?
