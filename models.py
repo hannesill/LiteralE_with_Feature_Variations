@@ -217,7 +217,7 @@ class ComplEx(nn.Module):
 
 class ConvE(torch.nn.Module):
     def __init__(self, num_entities, num_relations, lit=False, numerical_literals=None,
-                 text_literals=None, dropout=0.2, reg_weight=False, bias=False):
+                 text_literals=None, dropout=0.2, reg_weight=0.0, bias=False):
         super(ConvE, self).__init__()
         self.emb_w = 10
         self.emb_h = 20

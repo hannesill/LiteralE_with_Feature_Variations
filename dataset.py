@@ -228,7 +228,7 @@ if __name__ == '__main__':
     print("Test variant 3 – clustering")
 
     dataset = torch.load(f'data/{dataset_name}/processed.pt')
-    dataset.cluster_literals_txt(10)
+    dataset.cluster_literals_txt(20)
 
     print(dataset.literals_txt.shape)
     print(dataset.literals_txt[0])
