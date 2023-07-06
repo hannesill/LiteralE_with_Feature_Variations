@@ -1,3 +1,4 @@
+from sklearn.cluster import KMeans
 from torch.utils.data import Dataset
 import os.path as osp
 import pandas as pd
@@ -41,7 +42,7 @@ class LiteralLinkPredDataset(Dataset):
         self.literals_txt, self.attr_relations_txt = self.load_literals_and_attr_relations_txt()
 
     def load_dataframes(self):
-        print('start loading dataframes')
+        print('Start loading dataframes')
         df_triples_train = pd.read_csv(osp.join(self.triple_file, 'train.txt'), header=None, sep='\t')
         df_triples_val = pd.read_csv(osp.join(self.triple_file, 'valid.txt'), header=None, sep='\t')
         df_triples_test = pd.read_csv(osp.join(self.triple_file, 'test.txt'), header=None, sep='\t')
@@ -51,7 +52,7 @@ class LiteralLinkPredDataset(Dataset):
         return df_triples_train, df_triples_val, df_triples_test, df_literals_num, df_literals_txt
 
     def load_relational_data(self):
-        print('start loading relational data')
+        print('Start loading relational data')
         self.entities = list(set(np.concatenate([self.df_triples_train[0].unique(),
                                                  self.df_triples_test[0].unique(),
                                                  self.df_triples_val[0].unique(),
@@ -86,7 +87,7 @@ class LiteralLinkPredDataset(Dataset):
 
     def load_literals_and_attr_relations_num(self):
         # with E = number of embeddings, R = number of attributive relations, V = feature dim
-        print('start loading numerical literals: E x R')
+        print('Start loading numerical literals: E x R')
         attr_relations_num_unique = list(self.df_literals_num[1].unique())
 
         print("Unique numerical attributive relations: ", len(attr_relations_num_unique))
@@ -127,7 +128,7 @@ class LiteralLinkPredDataset(Dataset):
         return features_num, features_num_attr
 
     def load_literals_and_attr_relations_txt(self):
-        print('start loading textual literals: E x R x V')
+        print('Start loading textual literals: E x R x V')
         attr_relations_txt_unique = list(self.df_literals_txt[1].unique())
         attr_relation_txt_2_id = {attr_relations_txt_unique[i]: i for i in range(len(attr_relations_txt_unique))}
 
@@ -167,7 +168,7 @@ class LiteralLinkPredDataset(Dataset):
         features_txt = torch.stack(features_txt)
         features_txt_attr = torch.stack(features_txt_attr)
 
-        return features_txt, features_txt_attr
+        return features_txt.squeeze(), features_txt_attr
 
     def filter_literals_by_attr_relation_frequency(self, threshold=100):
         print(f"Filtering literals by attributive relation frequency with threshold {threshold}...")
@@ -195,11 +196,26 @@ class LiteralLinkPredDataset(Dataset):
         self.attr_relations_num = torch.tensor(df_attr_relations[attr_relations_num_filtered].to_numpy())
         self.attr_relations_txt = torch.tensor(df_attr_relations_txt[attr_relations_txt_filtered].to_numpy())
 
-        return self
+        # Filter literals_num and literals_txt
+        self.literals_num = self.literals_num[:, attr_relations_num_filtered]
+        self.literals_txt = self.literals_txt[:, attr_relations_txt_filtered]
+
+    def cluster_literals_txt(self, n_clusters=100):
+        print(f"Clustering textual literals with {n_clusters} clusters...")
+        embeddings = self.literals_txt.numpy()
+
+        embeddings_cluster_labeled = KMeans(n_clusters=n_clusters, random_state=0, n_init=10).fit_predict(embeddings)
+
+        # Convert text literals to one-hot encoding of clusters
+        self.literals_txt = torch.zeros(len(self.entities), n_clusters)
+        for i in range(len(embeddings_cluster_labeled)):
+            self.literals_txt[i, embeddings_cluster_labeled[i]] = 1
+
+
 
 
 if __name__ == '__main__':
-    print("Test variant 2")
+    print("Test variant 2 – filtering")
     dataset = torch.load(f'data/fb15k-237/processed.pt')
 
     print(dataset.attr_relations_num.shape)
@@ -213,3 +229,11 @@ if __name__ == '__main__':
     print(dataset.attr_relations_txt.shape)
     print(dataset.df_literals_num.shape)
     print(dataset.df_literals_txt.shape)
+
+    print("Test variant 3 – clustering")
+
+    dataset = torch.load(f'data/fb15k-237/processed.pt')
+    dataset.cluster_literals_txt(10)
+
+    print(dataset.literals_txt.shape)
+    print(dataset.literals_txt[0])
