@@ -8,11 +8,11 @@
 #SBATCH -p gpu
 #SBATCH -c 2
 #SBATCH --gres=gpu:1
-#SBATCH -w papaschlumpf
-#SBATCH --time=30:00:00
+#SBATCH -w clumsy
+#SBATCH --time=60:00:00
 
 # Load the conda environment
 eval "$(~/miniconda3/bin/conda shell.bash hook)"
 conda activate LiteralE
 
-python3 main.py --lit --filter 100 --attr --emb_dim 200
+python3 main.py --lit_mode txt --epochs 2000
