@@ -457,7 +457,7 @@ if __name__ == '__main__':
                 f"mrr: {mrr:05.4f}\n"
                 f"hits@1: {hits1:05.4f}\n"
                 f"hits@3: {hits3:05.4f}\n"
-                f"hits@3: {hits5:05.4f}\n"
+                f"hits@5: {hits5:05.4f}\n"
                 f"hits@10: {hits10:05.4f}\n"
                 f"avg_train_time: {avg_train_time:05.2f}")
 
