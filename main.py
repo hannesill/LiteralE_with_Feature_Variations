@@ -331,6 +331,8 @@ if __name__ == '__main__':
 
     RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + dataset_name
 
+    NOTES = "Inverse relations in train set"
+
     # default config
     config = {'dataset': dataset,
               'lit_mode': LITERAL_MODE,
@@ -344,12 +346,14 @@ if __name__ == '__main__':
               'batch_size': 256,
               'dropout': 0.2,
               'reg_weight': REG,
-              'batch_norm': False}
+              'batch_norm': False,
+              'notes': NOTES}
 
     # Write config to file
     with open(f"results/{RUN_NAME}_config.json", "w+") as f:
         json_config = config.copy()
         json_config['dataset'] = dataset_name
+
         json.dump(json_config, f)
 
     if LITERAL_FILTER_THRESHOLD != 0:
@@ -428,8 +432,14 @@ if __name__ == '__main__':
 
     model_lp.to(DEVICE)
 
+    # Print dataset info
+    print("Number of entities and relations:")
     print(dataset.num_entities, dataset.num_relations)
+    print("Number of training, validation and test triples:")
+    print(dataset.edge_index_train.shape, dataset.edge_index_val.shape, dataset.edge_index_test.shape)
+    print("Number of numerical and text literals:")
     print(dataset.literals_num.shape, dataset.literals_txt.shape)
+
 
     # train model
     print("Start training...")
