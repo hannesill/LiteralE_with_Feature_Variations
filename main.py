@@ -331,6 +331,8 @@ if __name__ == '__main__':
 
     RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + dataset_name
 
+    NOTES = ""
+
     # default config
     config = {'dataset': dataset,
               'lit_mode': LITERAL_MODE,
@@ -344,7 +346,8 @@ if __name__ == '__main__':
               'batch_size': 256,
               'dropout': 0.2,
               'reg_weight': REG,
-              'batch_norm': False}
+              'batch_norm': False,
+              'notes': NOTES}
 
     # Write config to file
     with open(f"results/{RUN_NAME}_config.json", "w+") as f:
