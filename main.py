@@ -431,7 +431,12 @@ if __name__ == '__main__':
 
     model_lp.to(DEVICE)
 
+    # Print dataset info
+    print("Number of entities and relations:")
     print(dataset.num_entities, dataset.num_relations)
+    print("Number of training, validation and test triples:")
+    print(dataset.edge_index_train.shape, dataset.edge_index_val.shape, dataset.edge_index_test.shape)
+    print("Number of numerical and text literals:")
     print(dataset.literals_num.shape, dataset.literals_txt.shape)
 
     # train model
