@@ -1,0 +1,7 @@
+test mr: 01.00
+mrr: 1.0000
+hits@1: 1.0000
+hits@3: 1.0000
+hits@5: 1.0000
+hits@10: 1.0000
+avg_train_time: 08.97

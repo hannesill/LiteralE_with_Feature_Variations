@@ -8,11 +8,13 @@
 #SBATCH -p gpu
 #SBATCH -c 2
 #SBATCH --gres=gpu:1
-#SBATCH -w papaschlumpf
+#SBATCH -w schlumpfine
 #SBATCH --time=100:00:00
 
+# Checkout right git branch
+git checkout main
 # Load the conda environment
 eval "$(~/miniconda3/bin/conda shell.bash hook)"
 conda activate LiteralE
 
-python3 main.py --lit_mode none  --epochs 4000
+python3 main.py --lit_mode num --eta 5
