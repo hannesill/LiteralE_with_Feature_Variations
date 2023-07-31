@@ -1,0 +1,6 @@
+/var/spool/slurmd/job01431/slurm_script: /homes/hill/miniconda3/bin/conda: /media/compute/homes/hill/miniconda3/bin/python: bad interpreter: No such file or directory
+/var/spool/slurmd/job01431/slurm_script: line 17: conda: command not found
+Traceback (most recent call last):
+  File "/homes/hill/LiteralE_core_v1/main.py", line 4, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
