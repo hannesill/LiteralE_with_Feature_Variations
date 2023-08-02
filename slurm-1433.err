@@ -1,7 +1,0 @@
-rm: cannot remove 'data/fb15k-237/processed.pt': No such file or directory
-/var/spool/slurmd/job01433/slurm_script: /homes/hill/miniconda3/bin/conda: /media/compute/homes/hill/miniconda3/bin/python: bad interpreter: No such file or directory
-/var/spool/slurmd/job01433/slurm_script: line 15: conda: command not found
-Traceback (most recent call last):
-  File "/homes/hill/LiteralE_core_v1/main.py", line 4, in <module>
-    import torch
-ModuleNotFoundError: No module named 'torch'
