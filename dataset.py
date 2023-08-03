@@ -91,9 +91,9 @@ class LiteralLinkPredDataset(Dataset):
         return edge_index_train, edge_index_val, edge_index_test
 
     def load_edge_types(self):
-        # Concatenate relations with itself because of inverse triples
+        # Concatenate relations with itself because of inverse triples (inverse relations as index + num_relations)
         edge_type_train_concat = torch.cat([torch.tensor(self.df_triples_train[1].map(self.relation2id)),
-                                            torch.tensor(self.df_triples_train[1].map(self.relation2id))])
+                                            torch.tensor(self.df_triples_train[1].map(self.relation2id)) + self.num_relations])
         edge_type_val = torch.tensor(self.df_triples_val[1].map(self.relation2id))
         edge_type_test = torch.tensor(self.df_triples_test[1].map(self.relation2id))
 
