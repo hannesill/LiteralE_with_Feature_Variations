@@ -38,7 +38,7 @@ class LiteralLinkPredDataset(Dataset):
         self.edge_type_train, self.edge_type_val, self.edge_type_test = self.load_edge_types()
 
         # Add inverse relations to the data set
-        self.num_relations = self.num_relations * 2
+        # self.num_relations = self.num_relations * 2
 
         print(f"Number of training triples: {len(self.df_triples_train)}")
         print(f"Edge index train shape: {self.edge_index_train.shape}")
@@ -96,7 +96,7 @@ class LiteralLinkPredDataset(Dataset):
     def load_edge_types(self):
         # Concatenate relations with itself because of inverse triples (inverse relations as index + num_relations)
         edge_type_train_concat = torch.cat([torch.tensor(self.df_triples_train[1].map(self.relation2id)),
-                                            torch.tensor(self.df_triples_train[1].map(self.relation2id)) + self.num_relations])
+                                            torch.tensor(self.df_triples_train[1].map(self.relation2id))]) # inverse relations as index + num_relations
         edge_type_val = torch.tensor(self.df_triples_val[1].map(self.relation2id))
         edge_type_test = torch.tensor(self.df_triples_test[1].map(self.relation2id))
 
