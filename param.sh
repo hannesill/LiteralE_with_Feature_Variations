@@ -5,7 +5,7 @@
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
 #SBATCH --gres=gpu:1
-#SBATCH --time=30:00:00
+#SBATCH --time=120:00:00
 
 # Checkout right git branch
 
@@ -13,4 +13,4 @@
 eval "$(~/miniconda3/bin/conda shell.bash hook)"
 conda activate LiteralE
 
-python3 main.py --lit_mode num --eta 5
+python3 main.py --lit_mode none  --eta 5 --epochs 8000
