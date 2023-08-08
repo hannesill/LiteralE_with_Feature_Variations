@@ -223,6 +223,9 @@ class LiteralLinkPredDataset(Dataset):
         for i in range(len(embeddings_cluster_labeled)):
             self.literals_txt[i, embeddings_cluster_labeled[i]] = 1
 
+        # Normalize txt_attr one hot encoding vector
+        self.literals_txt -= torch.mean(self.literals_txt, dim=0)
+
 
 if __name__ == '__main__':
     dataset_name = 'fb15k-237'
@@ -239,7 +242,7 @@ if __name__ == '__main__':
     print(dataset.df_literals_num.shape)
     print(dataset.df_literals_txt.shape)
 
-    dataset.filter_literals_by_attr_relation_frequency()
+    dataset.filter_literals_by_attr_relation_frequency(20)
 
     print(dataset.attr_relations_num.shape)
     print(dataset.attr_relations_txt.shape)
