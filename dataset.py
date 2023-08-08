@@ -134,6 +134,8 @@ class LiteralLinkPredDataset(Dataset):
                 feature_i_attr[int(row[1])] = 1
 
             features_num.append(feature_i)
+            # Normalize num_attr one hot encoding vector
+            feature_i_attr -= torch.mean(feature_i_attr)
             features_num_attr.append(feature_i_attr)
         features_num = torch.stack(features_num)
         features_num_attr = torch.stack(features_num_attr)
@@ -180,6 +182,8 @@ class LiteralLinkPredDataset(Dataset):
                 features_txt_attr_i[int(row[1])] = 1
 
             features_txt.append(features_txt_i)
+            # Normalize txt_attr one hot encoding vector
+            features_txt_attr_i -= torch.mean(features_txt_attr_i)
             features_txt_attr.append(features_txt_attr_i)
 
         features_txt = torch.stack(features_txt)
