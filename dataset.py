@@ -192,27 +192,25 @@ class LiteralLinkPredDataset(Dataset):
         return features_txt.squeeze(), features_txt_attr
 
     def filter_literals_by_attr_relation_frequency(self, threshold=100):
+        # Only filters numerical literals
+
         print(f"Filtering literals by attributive relation frequency with threshold {threshold}...")
         # Count occurences of attributive relations
         attr_relations_num_counts = self.df_literals_num[1].value_counts()
-        attr_relations_txt_counts = self.df_literals_txt[1].value_counts()
-
         # Filter attributive relations by frequency
         attr_relations_num_filtered = attr_relations_num_counts[attr_relations_num_counts > threshold].index
-        attr_relations_txt_filtered = attr_relations_txt_counts[attr_relations_txt_counts > threshold].index
 
         print(f"Literals num before: {len(attr_relations_num_counts)} after: {len(attr_relations_num_filtered)}")
-        print(f"Literals txt before: {len(attr_relations_txt_counts)} after: {len(attr_relations_txt_filtered)}")
 
-        # Filter literals_num and literals_txt
+        # Filter literals_num (literals_txt only has one description literal per entity -> no filtering needed)
         self.literals_num = self.literals_num[:, attr_relations_num_filtered]
-        self.literals_txt = self.literals_txt[:, attr_relations_txt_filtered]
 
         # Filter attributive relations
-        self.attr_relations_num = self.attr_relations_num[attr_relations_num_filtered]
-        self.attr_relations_txt = self.attr_relations_txt[attr_relations_txt_filtered]
+        self.attr_relations_num = self.attr_relations_num[:, attr_relations_num_filtered]
 
     def cluster_literals_txt(self, n_clusters=100):
+        # Only clusters textual literals
+
         print(f"Clustering textual literals with {n_clusters} clusters...")
         embeddings = self.literals_txt.numpy()
 
@@ -238,16 +236,12 @@ if __name__ == '__main__':
     dataset = torch.load(f'data/{dataset_name}/processed.pt')
 
     print(dataset.attr_relations_num.shape)
-    print(dataset.attr_relations_txt.shape)
-    print(dataset.df_literals_num.shape)
-    print(dataset.df_literals_txt.shape)
+    print(dataset.literals_num.shape)
 
-    dataset.filter_literals_by_attr_relation_frequency(20)
+    dataset.filter_literals_by_attr_relation_frequency(100)
 
     print(dataset.attr_relations_num.shape)
-    print(dataset.attr_relations_txt.shape)
-    print(dataset.df_literals_num.shape)
-    print(dataset.df_literals_txt.shape)
+    print(dataset.literals_num.shape)
 
     print("Test variant 3 – clustering")
 
