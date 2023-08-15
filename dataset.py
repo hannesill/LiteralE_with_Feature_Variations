@@ -167,6 +167,7 @@ class LiteralLinkPredDataset(Dataset):
         features_txt = []
         features_txt_attr = []
         for i in tqdm(range(len(self.entities))):
+            # TODO: Only take one literal value per entitiy
             df_i = self.df_literals_txt[self.df_literals_txt[0] == i]
 
             features_txt_i = torch.zeros(len(attr_relations_txt_unique), self.embedding_dim)

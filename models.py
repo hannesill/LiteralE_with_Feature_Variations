@@ -215,6 +215,13 @@ class ComplEx(nn.Module):
         return out, reg
 
 
+class Flatten(nn.Module):
+    def forward(self, x):
+        n, _, _, _ = x.size()
+        x = x.view(n, -1)
+        return x
+
+
 class ConvE(torch.nn.Module):
     def __init__(self, num_entities, num_relations, lit=False, numerical_literals=None,
                  text_literals=None, dropout=0.2, reg_weight=0.0, bias=False):
@@ -223,33 +230,34 @@ class ConvE(torch.nn.Module):
         self.emb_h = 20
         self.kernel_size = 3
         self.conv_channels = 32
-        self.embedding_dim = self.emb_w * self.emb_h
-        self.flattened_dim = self.conv_channels * (self.emb_w - 2 * (self.kernel_size - 1)) * \
-                                (self.emb_h - 2 * (self.kernel_size - 1))
 
-        self.entity_embedding = torch.nn.Embedding(num_entities, self.embedding_dim)
-        self.rel_embedding = torch.nn.Embedding(num_relations, self.embedding_dim)
+        embedding_size = self.emb_w * self.emb_h
+        flattened_size = (self.emb_w * 2 - self.kernel_size + 1) * \
+                         (self.emb_h - self.kernel_size + 1) * self.conv_channels # = 10368
+
+        self.entity_embedding = torch.nn.Embedding(num_entities, embedding_size)
+        self.rel_embedding = torch.nn.Embedding(num_relations, embedding_size)
 
         self.conv_e = nn.Sequential(
             nn.Dropout(dropout),
             nn.Conv2d(in_channels=1, out_channels=self.conv_channels, kernel_size=self.kernel_size, bias=bias),
             nn.ReLU(),
             nn.BatchNorm2d(self.conv_channels),
-            nn.Dropout(dropout),
-            nn.Flatten(),
-            nn.Linear(in_features=10368, out_features=self.embedding_dim), # TODO: Eig sollte hier flattened_dim stehen aber passt nicht von der Dimension
-            nn.ReLU(),
-            nn.BatchNorm1d(self.embedding_dim),
-            nn.Dropout(dropout)
-        )
+            nn.Dropout2d(dropout),
 
-        self.register_parameter('b', nn.Parameter(torch.zeros(self.embedding_dim)))
+            Flatten(),
+
+            nn.Linear(in_features=flattened_size, out_features=embedding_size),
+            nn.ReLU(),
+            nn.BatchNorm1d(embedding_size),
+            nn.Dropout(dropout),
+        )
 
         self.lit = lit
         if self.lit:
             self.numerical_literals = numerical_literals
             self.text_literals = text_literals
-            self.literal_embeddings = Gate(self.embedding_dim, numerical_literals.shape[1], text_literals.shape[1])
+            self.literal_embeddings = Gate(embedding_size, numerical_literals.shape[1], text_literals.shape[1])
 
         self.reg_weight = reg_weight
 
@@ -279,16 +287,9 @@ class ConvE(torch.nn.Module):
 
         stacked_inputs = torch.cat([e1_emb, rel_emb], dim=1).unsqueeze(1)
 
-        print(f"stacked_inputs: {stacked_inputs.shape}")
-
         x = self.conv_e(stacked_inputs)
-        print(x.shape, e2_emb.shape)
-        x = torch.mm(x, e2_emb.t())  # TODO: Wie ist hier die Formel, sodass die Dimensionen passen?
-        print(f"x: {x.shape}")
-        #x += self.b.expand_as(x)
+        x = torch.sum(x * e2_emb, dim=1) # TODO: Is this correct? Original code: torch.mm(x, e2_emb.t()) results in 256x256 matrix. Like this it is 256x1
         out = torch.sigmoid(x)
-
-        print(f"out: {out.shape}")
 
         # Regularization
         reg = 0.0
