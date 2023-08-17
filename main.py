@@ -239,7 +239,7 @@ def train_lp_objective(config, model_lp):
     edge_type_batches = torch.split(train_edge_type, config['batch_size'])
 
     # Evaluate model before training
-    # evaluate_lp_objective(model_lp, 0, history, dataset)
+    evaluate_lp_objective(model_lp, 0, history, dataset)
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Training
@@ -288,6 +288,7 @@ if __name__ == '__main__':
     parser.add_argument("--val_every", type=int, default=100)
     parser.add_argument("--eta", type=int, default=200)
     parser.add_argument("--emb_dim", type=int, default=200)
+    parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--reg", type=float, default=0.0)
     args = parser.parse_args()
 
@@ -320,6 +321,7 @@ if __name__ == '__main__':
     LITERAL_FILTER_THRESHOLD = args.filter
     LITERAL_TXT_CLUSTER = args.cluster
     REG = args.reg
+    BATCH_SIZE = args.batch_size
 
     dataset_name = 'fb15k-237'
     if not osp.isfile(f'data/{dataset_name}/processed.pt'):
@@ -343,7 +345,7 @@ if __name__ == '__main__':
               'dim': EMB_DIM,
               'eta': ETA,
               'lr': 0.00065,
-              'batch_size': 256,
+              'batch_size': BATCH_SIZE,
               'dropout': 0.2,
               'reg_weight': REG,
               'batch_norm': False,

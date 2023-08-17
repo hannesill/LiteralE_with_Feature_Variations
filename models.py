@@ -334,7 +334,7 @@ class ConvE(torch.nn.Module):
         stacked_inputs = torch.cat([e1_emb, rel_emb], dim=1).unsqueeze(1)
 
         x = self.conv_e(stacked_inputs)
-        x = torch.sum(x * e2_emb, dim=1) # TODO: Is this correct? Original code: torch.mm(x, e2_emb.t()) results in 256x256 matrix. Like this it is 256x1
+        x = torch.mm(x, e2_emb.t())[0]
         out = torch.sigmoid(x)
 
         # Regularization
