@@ -1,0 +1,1 @@
+{"dataset": "fb15k-237", "lit_mode": "txt", "filter": 0, "cluster": 1000, "epochs": 1000, "val_every": 100, "dim": 200, "eta": 200, "lr": 0.00065, "batch_size": 256, "dropout": 0.2, "reg_weight": 0.0, "batch_norm": false, "notes": "Inverse relations in train set"}
