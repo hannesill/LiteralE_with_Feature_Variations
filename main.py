@@ -290,6 +290,7 @@ if __name__ == '__main__':
     parser.add_argument("--emb_dim", type=int, default=200)
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--reg", type=float, default=0.0)
+    parser.add_argument("--dataset", type=str, default="FB15k-237")
     args = parser.parse_args()
 
     # Set model type
@@ -322,16 +323,21 @@ if __name__ == '__main__':
     LITERAL_TXT_CLUSTER = args.cluster
     REG = args.reg
     BATCH_SIZE = args.batch_size
+    DATASET = args.dataset
 
-    dataset_name = 'fb15k-237'
-    if not osp.isfile(f'data/{dataset_name}/processed.pt'):
+    if DATASET != "FB15k-237" and DATASET != "YAGO3-10":
+        raise ValueError("Invalid dataset name")
+
+    print(f"Dataset: {DATASET}")
+
+    if not osp.isfile(f'data/{DATASET}/processed.pt'):
         print('Process dataset...')
-        dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
-        torch.save(dataset, f'data/{dataset_name}/processed.pt')
+        dataset = LiteralLinkPredDataset(f'data/{DATASET}')
+        torch.save(dataset, f'data/{DATASET}/processed.pt')
     print('Load processed dataset...')
-    dataset = torch.load(f'data/{dataset_name}/processed.pt')
+    dataset = torch.load(f'data/{DATASET}/processed.pt')
 
-    RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + dataset_name
+    RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + DATASET
 
     NOTES = "Inverse relations in train set"
 
@@ -354,7 +360,7 @@ if __name__ == '__main__':
     # Write config to file
     with open(f"results/{RUN_NAME}_config.json", "w+") as f:
         json_config = config.copy()
-        json_config['dataset'] = dataset_name
+        json_config['dataset'] = DATASET
 
         json.dump(json_config, f)
 
