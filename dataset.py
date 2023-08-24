@@ -227,7 +227,7 @@ class LiteralLinkPredDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset_name = 'fb15k-237'
+    dataset_name = 'YAGO3-10'
     if not osp.isfile(f'data/{dataset_name}/processed.pt'):
         print('Process dataset...')
         dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
