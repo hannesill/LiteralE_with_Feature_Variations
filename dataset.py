@@ -227,27 +227,10 @@ class LiteralLinkPredDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset_name = 'YAGO3-10'
-    if not osp.isfile(f'data/{dataset_name}/processed.pt'):
-        print('Process dataset...')
-        dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
-        torch.save(dataset, f'data/{dataset_name}/processed.pt')
-
-    print("Test variant 2 – filtering")
-    dataset = torch.load(f'data/{dataset_name}/processed.pt')
-
-    print(dataset.attr_relations_num.shape)
-    print(dataset.literals_num.shape)
-
-    dataset.filter_literals_by_attr_relation_frequency(100)
-
-    print(dataset.attr_relations_num.shape)
-    print(dataset.literals_num.shape)
-
-    print("Test variant 3 – clustering")
-
-    dataset = torch.load(f'data/{dataset_name}/processed.pt')
-    dataset.cluster_literals_txt(20)
-
-    print(dataset.literals_txt.shape)
-    print(dataset.literals_txt[0])
+    dataset_name = 'FB15k-237'
+    # if not osp.isfile(f'data/{dataset_name}/processed.pt'):
+    #     print('Process dataset...')
+    #     dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
+    #     torch.save(dataset, f'data/{dataset_name}/processed.pt')
+    #
+    # dataset = torch.load(f'data/{dataset_name}/processed.pt')
