@@ -1,4 +1,4 @@
-# LiteralE_core_v1
+# LiteralE with Feature Variations
 
 This code is the implementation of the LiteralE method from the LiteralE paper alongside the feature variations tested in my Bachelor's thesis.
 
