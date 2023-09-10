@@ -239,7 +239,7 @@ def train_lp_objective(config, model_lp):
     edge_type_batches = torch.split(train_edge_type, config['batch_size'])
 
     # Evaluate model before training
-    evaluate_lp_objective(model_lp, 0, history, dataset)
+    # evaluate_lp_objective(model_lp, 0, history, dataset)
 
     for epoch in range(start_epoch, config['epochs'] + 1):
         # Training
@@ -288,7 +288,9 @@ if __name__ == '__main__':
     parser.add_argument("--val_every", type=int, default=100)
     parser.add_argument("--eta", type=int, default=200)
     parser.add_argument("--emb_dim", type=int, default=200)
+    parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--reg", type=float, default=0.0)
+    parser.add_argument("--dataset", type=str, default="FB15k-237")
     args = parser.parse_args()
 
     # Set model type
@@ -320,16 +322,24 @@ if __name__ == '__main__':
     LITERAL_FILTER_THRESHOLD = args.filter
     LITERAL_TXT_CLUSTER = args.cluster
     REG = args.reg
+    BATCH_SIZE = args.batch_size
+    DATASET = args.dataset
 
-    dataset_name = 'fb15k-237'
-    if not osp.isfile(f'data/{dataset_name}/processed.pt'):
+    if DATASET != "FB15k-237" and DATASET != "YAGO3-10":
+        raise ValueError("Invalid dataset name")
+
+    print(f"Dataset: {DATASET}")
+
+    if not osp.isfile(f'data/{DATASET}/processed.pt'):
         print('Process dataset...')
-        dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
-        torch.save(dataset, f'data/{dataset_name}/processed.pt')
+        dataset = LiteralLinkPredDataset(f'data/{DATASET}')
+        torch.save(dataset, f'data/{DATASET}/processed.pt')
     print('Load processed dataset...')
-    dataset = torch.load(f'data/{dataset_name}/processed.pt')
+    dataset = torch.load(f'data/{DATASET}/processed.pt')
 
-    RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + dataset_name
+    RUN_NAME = datetime.now().strftime("%m-%d_%H-%M-%S") + "_" + model_type + "_" + DATASET
+
+    NOTES = "Inverse relations in train set"
 
     NOTES = ""
 
@@ -343,7 +353,7 @@ if __name__ == '__main__':
               'dim': EMB_DIM,
               'eta': ETA,
               'lr': 0.00065,
-              'batch_size': 256,
+              'batch_size': BATCH_SIZE,
               'dropout': 0.2,
               'reg_weight': REG,
               'batch_norm': False,
@@ -352,7 +362,8 @@ if __name__ == '__main__':
     # Write config to file
     with open(f"results/{RUN_NAME}_config.json", "w+") as f:
         json_config = config.copy()
-        json_config['dataset'] = dataset_name
+        json_config['dataset'] = DATASET
+
         json.dump(json_config, f)
 
     if LITERAL_FILTER_THRESHOLD != 0:
@@ -407,7 +418,7 @@ if __name__ == '__main__':
         model_lp = ComplEx(dataset.num_entities,
                            dataset.num_relations,
                            config['dim'],
-                           lit=config['lit_mode'],
+                           lit_mode=config['lit_mode'],
                            numerical_literals=literal_info_num,
                            text_literals=literal_info_txt,
                            dropout=config['dropout'],
@@ -421,7 +432,7 @@ if __name__ == '__main__':
     elif model_type == "ConvELit":
         model_lp = ConvE(dataset.num_entities,
                          dataset.num_relations,
-                         lit=config['lit_mode'],
+                         lit_mode=config['lit_mode'],
                          numerical_literals=literal_info_num,
                          text_literals=literal_info_txt,
                          dropout=config['dropout'],
@@ -438,6 +449,7 @@ if __name__ == '__main__':
     print(dataset.edge_index_train.shape, dataset.edge_index_val.shape, dataset.edge_index_test.shape)
     print("Number of numerical and text literals:")
     print(dataset.literals_num.shape, dataset.literals_txt.shape)
+
 
     # train model
     print("Start training...")

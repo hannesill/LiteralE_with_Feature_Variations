@@ -131,7 +131,7 @@ class DistMult(nn.Module):
 
 
 class ComplEx(nn.Module):
-    def __init__(self, num_entities, num_relations, embedding_dim, lit=False, numerical_literals=None,
+    def __init__(self, num_entities, num_relations, embedding_dim, lit_mode="none", numerical_literals=None,
                  text_literals=None, dropout=0.2, batch_norm=False, reg_weight=0.0):
         super(ComplEx, self).__init__()
         self.entity_embedding_real = nn.Embedding(num_entities, embedding_dim)
@@ -139,11 +139,20 @@ class ComplEx(nn.Module):
         self.rel_embedding_real = nn.Embedding(num_relations, embedding_dim)
         self.rel_embedding_img = nn.Embedding(num_relations, embedding_dim)
 
-        self.lit = lit
-        if self.lit:
+        self.lit_mode = lit_mode
+        if self.lit_mode == "all":
+            print("Literal mode: all")
             self.numerical_literals = numerical_literals
             self.text_literals = text_literals
             self.literal_embeddings = Gate(embedding_dim, numerical_literals.shape[1], text_literals.shape[1])
+        elif self.lit_mode == "num":
+            print("Literal mode: num")
+            self.numerical_literals = numerical_literals
+            self.literal_embeddings = Gate(embedding_dim, numerical_literals.shape[1], 0)
+        elif self.lit_mode == "txt":
+            print("Literal mode: txt")
+            self.text_literals = text_literals
+            self.literal_embeddings = Gate(embedding_dim, 0, text_literals.shape[1])
 
         self.dp = nn.Dropout(dropout)
         self.batch_norm = batch_norm
@@ -176,7 +185,7 @@ class ComplEx(nn.Module):
             e2_emb_real = self.bn_entity(e2_emb_real)
             e2_emb_img = self.bn_entity(e2_emb_img)
 
-        if self.lit:
+        if self.lit_mode == "all":
             # Get embeddings for numerical and text literals
             # For e1
             e1_num_lit = self.numerical_literals[e1_idx]
@@ -188,6 +197,27 @@ class ComplEx(nn.Module):
             e2_text_lit = self.text_literals[e2_idx]
             e2_emb_real = self.literal_embeddings(e2_emb_real, e2_num_lit, e2_text_lit)
             e2_emb_img = self.literal_embeddings(e2_emb_img, e2_num_lit, e2_text_lit)
+        elif self.lit_mode == "num":
+            # Get embeddings for numerical literals
+            # For e1
+            e1_num_lit = self.numerical_literals[e1_idx]
+            e1_emb_real = self.literal_embeddings(e1_emb_real, e1_num_lit, None)
+            e1_emb_img = self.literal_embeddings(e1_emb_img, e1_num_lit, None)
+            # For e2
+            e2_num_lit = self.numerical_literals[e2_idx]
+            e2_emb_real = self.literal_embeddings(e2_emb_real, e2_num_lit, None)
+            e2_emb_img = self.literal_embeddings(e2_emb_img, e2_num_lit, None)
+        elif self.lit_mode == "txt":
+            # Get embeddings for textual literals
+            # For e1
+            e1_text_lit = self.text_literals[e1_idx]
+            e1_emb_real = self.literal_embeddings(e1_emb_real, None, e1_text_lit)
+            e1_emb_img = self.literal_embeddings(e1_emb_img, None, e1_text_lit)
+            # For e2
+            e2_text_lit = self.text_literals[e2_idx]
+            e2_emb_real = self.literal_embeddings(e2_emb_real, None, e2_text_lit)
+            e2_emb_img = self.literal_embeddings(e2_emb_img, None, e2_text_lit)
+
 
         # Apply dropout
         e1_emb_real = self.dp(e1_emb_real)
@@ -215,41 +245,58 @@ class ComplEx(nn.Module):
         return out, reg
 
 
+class Flatten(nn.Module):
+    def forward(self, x):
+        n, _, _, _ = x.size()
+        x = x.view(n, -1)
+        return x
+
+
 class ConvE(torch.nn.Module):
-    def __init__(self, num_entities, num_relations, lit=False, numerical_literals=None,
+    def __init__(self, num_entities, num_relations, lit_mode="none", numerical_literals=None,
                  text_literals=None, dropout=0.2, reg_weight=0.0, bias=False):
         super(ConvE, self).__init__()
         self.emb_w = 10
         self.emb_h = 20
         self.kernel_size = 3
         self.conv_channels = 32
-        self.embedding_dim = self.emb_w * self.emb_h
-        self.flattened_dim = self.conv_channels * (self.emb_w - 2 * (self.kernel_size - 1)) * \
-                                (self.emb_h - 2 * (self.kernel_size - 1))
 
-        self.entity_embedding = torch.nn.Embedding(num_entities, self.embedding_dim)
-        self.rel_embedding = torch.nn.Embedding(num_relations, self.embedding_dim)
+        embedding_dim = self.emb_w * self.emb_h
+        flattened_size = (self.emb_w * 2 - self.kernel_size + 1) * \
+                         (self.emb_h - self.kernel_size + 1) * self.conv_channels # = 10368
+
+        self.entity_embedding = torch.nn.Embedding(num_entities, embedding_dim)
+        self.rel_embedding = torch.nn.Embedding(num_relations, embedding_dim)
 
         self.conv_e = nn.Sequential(
             nn.Dropout(dropout),
             nn.Conv2d(in_channels=1, out_channels=self.conv_channels, kernel_size=self.kernel_size, bias=bias),
             nn.ReLU(),
             nn.BatchNorm2d(self.conv_channels),
-            nn.Dropout(dropout),
-            nn.Flatten(),
-            nn.Linear(in_features=10368, out_features=self.embedding_dim), # TODO: Eig sollte hier flattened_dim stehen aber passt nicht von der Dimension
+            nn.Dropout2d(dropout),
+
+            Flatten(),
+
+            nn.Linear(in_features=flattened_size, out_features=embedding_dim),
             nn.ReLU(),
-            nn.BatchNorm1d(self.embedding_dim),
-            nn.Dropout(dropout)
+            nn.BatchNorm1d(embedding_dim),
+            nn.Dropout(dropout),
         )
 
-        self.register_parameter('b', nn.Parameter(torch.zeros(self.embedding_dim)))
-
-        self.lit = lit
-        if self.lit:
+        self.lit_mode = lit_mode
+        if self.lit_mode == "all":
+            print("Literal mode: all")
             self.numerical_literals = numerical_literals
             self.text_literals = text_literals
-            self.literal_embeddings = Gate(self.embedding_dim, numerical_literals.shape[1], text_literals.shape[1])
+            self.literal_embeddings = Gate(embedding_dim, numerical_literals.shape[1], text_literals.shape[1])
+        elif self.lit_mode == "num":
+            print("Literal mode: num")
+            self.numerical_literals = numerical_literals
+            self.literal_embeddings = Gate(embedding_dim, numerical_literals.shape[1], 0)
+        elif self.lit_mode == "txt":
+            print("Literal mode: txt")
+            self.text_literals = text_literals
+            self.literal_embeddings = Gate(embedding_dim, 0, text_literals.shape[1])
 
         self.reg_weight = reg_weight
 
@@ -262,16 +309,23 @@ class ConvE(torch.nn.Module):
         rel_emb = self.rel_embedding(rel_idx)
         e2_emb = self.entity_embedding(e2_idx)
 
-        if self.lit:
-            # Get embeddings for numerical and text literals
-            # For e1
+        if self.lit_mode == "all":
             e1_num_lit = self.numerical_literals[e1_idx]
             e1_text_lit = self.text_literals[e1_idx]
             e1_emb = self.literal_embeddings(e1_emb, e1_num_lit, e1_text_lit)
-            # For e2
             e2_num_lit = self.numerical_literals[e2_idx]
             e2_text_lit = self.text_literals[e2_idx]
             e2_emb = self.literal_embeddings(e2_emb, e2_num_lit, e2_text_lit)
+        elif self.lit_mode == "num":
+            e1_num_lit = self.numerical_literals[e1_idx]
+            e1_emb = self.literal_embeddings(e1_emb, e1_num_lit, None)
+            e2_num_lit = self.numerical_literals[e2_idx]
+            e2_emb = self.literal_embeddings(e2_emb, e2_num_lit, None)
+        elif self.lit_mode == "txt":
+            e1_text_lit = self.text_literals[e1_idx]
+            e1_emb = self.literal_embeddings(e1_emb, None, e1_text_lit)
+            e2_text_lit = self.text_literals[e2_idx]
+            e2_emb = self.literal_embeddings(e2_emb, None, e2_text_lit)
 
         # Reshape embeddings
         e1_emb = e1_emb.view(-1, self.emb_w, self.emb_h)
@@ -279,16 +333,9 @@ class ConvE(torch.nn.Module):
 
         stacked_inputs = torch.cat([e1_emb, rel_emb], dim=1).unsqueeze(1)
 
-        print(f"stacked_inputs: {stacked_inputs.shape}")
-
         x = self.conv_e(stacked_inputs)
-        print(x.shape, e2_emb.shape)
-        x = torch.mm(x, e2_emb.t())  # TODO: Wie ist hier die Formel, sodass die Dimensionen passen?
-        print(f"x: {x.shape}")
-        #x += self.b.expand_as(x)
+        x = torch.mm(x, e2_emb.t())[0]
         out = torch.sigmoid(x)
-
-        print(f"out: {out.shape}")
 
         # Regularization
         reg = 0.0
