@@ -33,8 +33,8 @@ DISTMULT_LIT_TXT_MODEL_FILE_NAME = "08-11_00-27-13_DistMultLit_fb15k-237_model.p
 DISTMULT_LIT_ALL_MODEL_FILE_NAME = "08-11_00-27-14_DistMultLit_fb15k-237_model.pt"
 DISTMULT_LIT_ATTR_MODEL_FILE_NAME = "08-05_12-05-02_DistMultLit_fb15k-237_model.pt"
 
-MODEL = "DistMultLit"
-MODE = "ent"
+MODEL = "DistMultLit" # DistMultLit or DistMult
+MODE = "ent" # num, attr, txt, all or ent
 
 MODEL_FILE_NAME = ""
 if MODEL == "DistMultLit":
