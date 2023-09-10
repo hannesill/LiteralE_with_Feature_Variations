@@ -34,7 +34,7 @@ DISTMULT_LIT_ALL_MODEL_FILE_NAME = "08-11_00-27-14_DistMultLit_fb15k-237_model.p
 DISTMULT_LIT_ATTR_MODEL_FILE_NAME = "08-05_12-05-02_DistMultLit_fb15k-237_model.pt"
 
 MODEL = "DistMultLit"
-MODE = "all"
+MODE = "ent"
 
 MODEL_FILE_NAME = ""
 if MODEL == "DistMultLit":
@@ -46,6 +46,8 @@ if MODEL == "DistMultLit":
         MODEL_FILE_NAME = DISTMULT_LIT_ALL_MODEL_FILE_NAME
     elif MODE == "attr":
         MODEL_FILE_NAME = DISTMULT_LIT_ATTR_MODEL_FILE_NAME
+    elif MODE == "ent":
+        MODEL_FILE_NAME = DISTMULT_LIT_ALL_MODEL_FILE_NAME
     else:
         raise ValueError("Mode must be 'num', 'attr', 'txt' or 'all'")
 elif MODEL == "DistMult":
@@ -180,7 +182,15 @@ if __name__ == "__main__":
 
     elif MODEL == "DistMultLit":
         print("Getting embeddings for DistMultLit model...")
-        samples = get_literal_embedding(model, sample_entities, mode=MODE)
+        if MODE == "ent":
+            print("Getting base entity embeddings for DistMultLit model...")
+            entity_embeddings = model["entity_embeddings.weight"].detach().numpy()
+            for row in sample_entities.itertuples():
+                emb = entity_embeddings[row.entity_index]
+                color = COLORS[row.class_label]
+                samples.append((row.entity_index, row.class_label, emb, color))
+        else:
+            samples = get_literal_embedding(model, sample_entities, mode=MODE)
 
     else:
         raise ValueError("Model not recognized.")

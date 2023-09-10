@@ -140,7 +140,7 @@ class LiteralLinkPredDataset(Dataset):
         features_num = torch.stack(features_num)
         features_num_attr = torch.stack(features_num_attr)
 
-        # Normalize numerical literals # TODO: Richtig?
+        # Normalize numerical literals
         max_lit, min_lit = torch.max(features_num, dim=0).values, torch.min(features_num, dim=0).values
         features_num = (features_num - min_lit) / (max_lit - min_lit + 1e-8)
 
@@ -163,20 +163,16 @@ class LiteralLinkPredDataset(Dataset):
         nlp = spacy.load('en_core_web_md')
 
         # Extract embedding vectors for one textual literal value per entity and the attributive relations
-        # TODO (optional): Take every literal feature and not just 1 -> take a look at LiteralE original impl
         features_txt = []
         features_txt_attr = []
         for i in tqdm(range(len(self.entities))):
-            # TODO: Only take one literal value per entitiy
             df_i = self.df_literals_txt[self.df_literals_txt[0] == i]
 
             features_txt_i = torch.zeros(len(attr_relations_txt_unique), self.embedding_dim)
             features_txt_attr_i = torch.zeros(len(attr_relations_txt_unique))
             for index, row in df_i.iterrows():
                 # Textual literal values: row[1] = attributive relation index, row[2] = literal value
-                # TODO (optional): BERT embeddings ausprobieren
                 spacy_embedding = torch.tensor(nlp(row[2]).vector)
-                # TODO: Embedding size spacy mitgebbar?
                 features_txt_i[int(row[1])] = spacy_embedding
 
                 # One-hot encoding for attributive relations
