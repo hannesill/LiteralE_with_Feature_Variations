@@ -29,10 +29,30 @@ class LiteralLinkPredDataset(Dataset):
         self.entities, self.relations = self.load_relational_data()
 
         self.num_entities = len(self.entities)
+        print(self.num_entities)
         self.num_relations = len(self.relations)
 
-        self.entity2id = {self.entities[i]: i for i in range(self.num_entities)}
-        self.relation2id = {self.relations[i]: i for i in range(self.num_relations)}
+        # Load external mappings of entities and relations to indices
+        vocab_entities = np.load("vocab_e1", allow_pickle=True)
+        self.entity2id = vocab_entities[0]
+
+        print(vocab_entities[1][2])
+        print(vocab_entities[0]["/m/027rn"])
+
+
+        print("Entity vocab lists")
+        print(len(vocab_entities[0]), len(vocab_entities[1]), len(vocab_entities[2]), len(vocab_entities[3]))
+        # Print entities that don't start with /m/
+        print("Special entity tokens:")
+        for entity in self.entity2id:
+            if not entity.startswith('/m/'):
+                print("->", entity)
+
+        # Print number of unique entities starting with /m/
+        print("Number of unique entities starting with /m/:",
+              len(set([entity for entity in self.entity2id if entity.startswith('/m/')])))
+
+        self.relation2id = {relation: idx for idx, relation in enumerate(self.relations)}
 
         self.edge_index_train, self.edge_index_val, self.edge_index_test = self.load_edge_indices()
         self.edge_type_train, self.edge_type_val, self.edge_type_test = self.load_edge_types()
@@ -66,8 +86,9 @@ class LiteralLinkPredDataset(Dataset):
                                                  self.df_triples_train[2].unique(),
                                                  self.df_triples_test[2].unique(),
                                                  self.df_triples_val[2].unique(),
-                                                 self.df_literals_num[0].unique(),
-                                                 self.df_literals_txt[0].unique()])))
+                                                 #self.df_literals_num[0].unique(),
+                                                 #self.df_literals_txt[0].unique()
+                                                 ])))
 
         self.relations = list(set(np.concatenate([self.df_triples_train[1].unique(),
                                                   self.df_triples_test[1].unique(),
@@ -112,6 +133,8 @@ class LiteralLinkPredDataset(Dataset):
         attr_relation_num_2_id = {attr_relations_num_unique[i]: i for i in range(len(attr_relations_num_unique))}
 
         # Map entities to ids
+        # Drop all literals that have entities that are not in the training set
+        self.df_literals_num = self.df_literals_num[self.df_literals_num[0].isin(self.entities)]
         self.df_literals_num[0] = self.df_literals_num[0].map(self.entity2id).astype(int)
         # Map attributive relations to ids
         self.df_literals_num[1] = self.df_literals_num[1].map(attr_relation_num_2_id).astype(int)
@@ -121,7 +144,7 @@ class LiteralLinkPredDataset(Dataset):
         # Extract numerical literal feature vectors for each entity for literal values and attributive relations
         features_num = []
         features_num_attr = []
-        for i in tqdm(range(len(self.entities))):
+        for i in tqdm(range(len(self.entities) + 2)):
             df_i = self.df_literals_num[self.df_literals_num[0] == i]
 
             feature_i = torch.zeros(len(attr_relations_num_unique))
@@ -154,6 +177,8 @@ class LiteralLinkPredDataset(Dataset):
         print("Unique textual attributive relations: ", len(attr_relations_txt_unique))
 
         # Map entities to ids
+        # Drop all literals that have entities that are not in the training set
+        self.df_literals_txt = self.df_literals_txt[self.df_literals_txt[0].isin(self.entities)]
         self.df_literals_txt[0] = self.df_literals_txt[0].map(self.entity2id).astype(int)
         # Map attributive relations to ids
         self.df_literals_txt[1] = self.df_literals_txt[1].map(attr_relation_txt_2_id).astype(int)
@@ -224,9 +249,31 @@ class LiteralLinkPredDataset(Dataset):
 
 if __name__ == '__main__':
     dataset_name = 'FB15k-237'
-    # if not osp.isfile(f'data/{dataset_name}/processed.pt'):
-    #     print('Process dataset...')
-    #     dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
-    #     torch.save(dataset, f'data/{dataset_name}/processed.pt')
-    #
-    # dataset = torch.load(f'data/{dataset_name}/processed.pt')
+    if not osp.isfile(f'data/{dataset_name}/processed.pt'):
+        print('Process dataset...')
+        dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
+        torch.save(dataset, f'data/{dataset_name}/processed.pt')
+
+    dataset = torch.load(f'data/{dataset_name}/processed.pt')
+
+    # Save numerical literals to numpy file
+    np.save(f'data/{dataset_name}/numerical_literals_rep.npy', dataset.literals_num.numpy())
+    # Save textual literals to numpy file
+    np.save(f'data/{dataset_name}/text_literals_rep.npy', dataset.literals_txt.numpy())
+
+    # Save attributive relation type literals to numpy file
+    np.save(f'data/{dataset_name}/numerical_literals_rep_attr.npy', dataset.attr_relations_num.numpy())
+
+    filtered_ds_100 = dataset
+    filtered_ds_100.filter_literals_by_attr_relation_frequency(100)
+    # Save frequency filtered numerical literals to numpy file (frequency threshold = 100)
+    np.save(f'data/{dataset_name}/numerical_literals_rep_filtered_100.npy',
+            filtered_ds_100.literals_num.numpy())
+
+    clustered_ds_100 = dataset
+    clustered_ds_100.cluster_literals_txt(100)
+
+    # Save clustered textual literals to numpy file (n_clusters = 100)
+    np.save(f'data/{dataset_name}/text_literals_rep_clustered_100.npy',
+            clustered_ds_100.literals_txt.numpy())
+
