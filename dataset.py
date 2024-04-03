@@ -9,7 +9,7 @@ import spacy
 
 
 class LiteralLinkPredDataset(Dataset):
-    # Only consider numerical literal features, the rest is commented out
+
     def __getitem__(self, index):
         # placeholder
         return None
@@ -26,57 +26,37 @@ class LiteralLinkPredDataset(Dataset):
             = self.load_dataframes()
 
         # Relational data
-        # self.entities, self.relations = self.load_relational_data()
+        self.entities, self.relations = self.load_relational_data()
 
-        #cself.num_entities = len(self.entities)
-        # self.num_relations = len(self.relations)
+        self.num_entities = len(self.entities)
+        self.num_relations = len(self.relations)
 
-        # Load external mappings of entities and relations to indices
-        vocab_entities = np.load("vocab_e1", allow_pickle=True)
-        self.entity2id = vocab_entities[0]
+        self.entity2id = {self.entities[i]: i for i in range(self.num_entities)}
+        self.relation2id = {self.relations[i]: i for i in range(self.num_relations)}
 
-        print("Entity vocab lists")
-        print(len(vocab_entities[0]), len(vocab_entities[1]), len(vocab_entities[2]), len(vocab_entities[3]))
-        # Print entities that don't start with /m/
-        print("Special entity tokens:")
-        for entity in self.entity2id:
-            if not entity.startswith('/m/'):
-                print("->", entity)
-
-        # Print number of unique entities starting with /m/
-        print("Number of unique entities starting with /m/:",
-              len(set([entity for entity in self.entity2id if entity.startswith('/m/')])))
-
-
-        self.relation2id = vocab_entities[1]
-        # self.relation2id = {relation: idx for idx, relation in enumerate(self.relations)}
-
-        # self.edge_index_train, self.edge_index_val, self.edge_index_test = self.load_edge_indices()
-        # self.edge_type_train, self.edge_type_val, self.edge_type_test = self.load_edge_types()
+        self.edge_index_train, self.edge_index_val, self.edge_index_test = self.load_edge_indices()
+        self.edge_type_train, self.edge_type_val, self.edge_type_test = self.load_edge_types()
 
         # Add inverse relations to the data set
         # self.num_relations = self.num_relations * 2
 
-        # print(f"Number of training triples: {len(self.df_triples_train)}")
-        # print(f"Number of validation triples: {len(self.df_triples_val)}")
-        # print(f"Number of test triples: {len(self.df_triples_test)}")
-        # print(f"Edge index train shape: {self.edge_index_train.shape}")
-        # print(f"Edge type train shape: {self.edge_type_train.shape}")
+        print(f"Number of training triples: {len(self.df_triples_train)}")
+        print(f"Edge index train shape: {self.edge_index_train.shape}")
+        print(f"Edge type train shape: {self.edge_type_train.shape}")
 
         # Literal data
         self.literals_num, self.attr_relations_num = self.load_literals_and_attr_relations_num()
-        # For the paper we only consider numerical literals
-        # self.literals_txt, self.attr_relations_txt = self.load_literals_and_attr_relations_txt()
+        self.literals_txt, self.attr_relations_txt = self.load_literals_and_attr_relations_txt()
 
     def load_dataframes(self):
         print('Start loading dataframes')
-        # df_triples_train = pd.read_csv(osp.join(self.triple_file, 'train.txt'), header=None, sep='\t')
-        # df_triples_val = pd.read_csv(osp.join(self.triple_file, 'valid.txt'), header=None, sep='\t')
-        # df_triples_test = pd.read_csv(osp.join(self.triple_file, 'test.txt'), header=None, sep='\t')
-        df_literals_num = pd.read_csv(osp.join(self.triple_file, 'numerical_literals_decimal.txt'), header=None, sep='\t')
-        # df_literals_txt = pd.read_csv(osp.join(self.triple_file, 'text_literals.txt'), header=None, sep='\t')
+        df_triples_train = pd.read_csv(osp.join(self.triple_file, 'train.txt'), header=None, sep='\t')
+        df_triples_val = pd.read_csv(osp.join(self.triple_file, 'valid.txt'), header=None, sep='\t')
+        df_triples_test = pd.read_csv(osp.join(self.triple_file, 'test.txt'), header=None, sep='\t')
+        df_literals_num = pd.read_csv(osp.join(self.triple_file, 'numerical_literals.txt'), header=None, sep='\t')
+        df_literals_txt = pd.read_csv(osp.join(self.triple_file, 'text_literals.txt'), header=None, sep='\t')
 
-        return None, None, None, df_literals_num, None # df_literals_txt
+        return df_triples_train, df_triples_val, df_triples_test, df_literals_num, df_literals_txt
 
     def load_relational_data(self):
         print('Start loading relational data')
@@ -87,8 +67,7 @@ class LiteralLinkPredDataset(Dataset):
                                                  self.df_triples_test[2].unique(),
                                                  self.df_triples_val[2].unique(),
                                                  self.df_literals_num[0].unique(),
-                                                 # self.df_literals_txt[0].unique()
-                                                 ])))
+                                                 self.df_literals_txt[0].unique()])))
 
         self.relations = list(set(np.concatenate([self.df_triples_train[1].unique(),
                                                   self.df_triples_test[1].unique(),
@@ -133,8 +112,6 @@ class LiteralLinkPredDataset(Dataset):
         attr_relation_num_2_id = {attr_relations_num_unique[i]: i for i in range(len(attr_relations_num_unique))}
 
         # Map entities to ids
-        # Drop all literals that have entities that are not in the training set
-        self.df_literals_num = self.df_literals_num[self.df_literals_num[0].isin(self.entity2id.keys())]
         self.df_literals_num[0] = self.df_literals_num[0].map(self.entity2id).astype(int)
         # Map attributive relations to ids
         self.df_literals_num[1] = self.df_literals_num[1].map(attr_relation_num_2_id).astype(int)
@@ -144,7 +121,7 @@ class LiteralLinkPredDataset(Dataset):
         # Extract numerical literal feature vectors for each entity for literal values and attributive relations
         features_num = []
         features_num_attr = []
-        for i in tqdm(range(len(self.entity2id) + 2)):
+        for i in tqdm(range(len(self.entities))):
             df_i = self.df_literals_num[self.df_literals_num[0] == i]
 
             feature_i = torch.zeros(len(attr_relations_num_unique))
@@ -157,60 +134,59 @@ class LiteralLinkPredDataset(Dataset):
                 feature_i_attr[int(row[1])] = 1
 
             features_num.append(feature_i)
+            # Normalize num_attr one hot encoding vector
+            feature_i_attr -= torch.mean(feature_i_attr)
             features_num_attr.append(feature_i_attr)
         features_num = torch.stack(features_num)
         features_num_attr = torch.stack(features_num_attr)
 
-        # Normalize numerical literals and attributive relations
+        # Normalize numerical literals
         max_lit, min_lit = torch.max(features_num, dim=0).values, torch.min(features_num, dim=0).values
         features_num = (features_num - min_lit) / (max_lit - min_lit + 1e-8)
-        features_num_attr -= features_num_attr.mean(dim=0, keepdim=True)
 
         return features_num, features_num_attr
 
-    # def load_literals_and_attr_relations_txt(self):
-    #     print('Start loading textual literals: E x R x V')
-    #     attr_relations_txt_unique = list(self.df_literals_txt[1].unique())
-    #     attr_relation_txt_2_id = {attr_relations_txt_unique[i]: i for i in range(len(attr_relations_txt_unique))}
-    #
-    #     print("Unique textual attributive relations: ", len(attr_relations_txt_unique))
-    #
-    #     # Map entities to ids
-    #     # Drop all literals that have entities that are not in the training set
-    #     self.df_literals_txt = self.df_literals_txt[self.df_literals_txt[0].isin(self.entities)]
-    #     self.df_literals_txt[0] = self.df_literals_txt[0].map(self.entity2id).astype(int)
-    #     # Map attributive relations to ids
-    #     self.df_literals_txt[1] = self.df_literals_txt[1].map(attr_relation_txt_2_id).astype(int)
-    #     # Change literal values to string
-    #     self.df_literals_num[2] = self.df_literals_num[2].astype(str)
-    #
-    #     nlp = spacy.load('en_core_web_md')
-    #
-    #     # Extract embedding vectors for one textual literal value per entity and the attributive relations
-    #     features_txt = []
-    #     features_txt_attr = []
-    #     for i in tqdm(range(len(self.entities))):
-    #         df_i = self.df_literals_txt[self.df_literals_txt[0] == i]
-    #
-    #         features_txt_i = torch.zeros(len(attr_relations_txt_unique), self.embedding_dim)
-    #         features_txt_attr_i = torch.zeros(len(attr_relations_txt_unique))
-    #         for index, row in df_i.iterrows():
-    #             # Textual literal values: row[1] = attributive relation index, row[2] = literal value
-    #             spacy_embedding = torch.tensor(nlp(row[2]).vector)
-    #             features_txt_i[int(row[1])] = spacy_embedding
-    #
-    #             # One-hot encoding for attributive relations
-    #             features_txt_attr_i[int(row[1])] = 1
-    #
-    #         features_txt.append(features_txt_i)
-    #         # Normalize txt_attr one hot encoding vector
-    #         features_txt_attr_i -= torch.mean(features_txt_attr_i)
-    #         features_txt_attr.append(features_txt_attr_i)
-    #
-    #     features_txt = torch.stack(features_txt)
-    #     features_txt_attr = torch.stack(features_txt_attr)
-    #
-    #     return features_txt.squeeze(), features_txt_attr
+    def load_literals_and_attr_relations_txt(self):
+        print('Start loading textual literals: E x R x V')
+        attr_relations_txt_unique = list(self.df_literals_txt[1].unique())
+        attr_relation_txt_2_id = {attr_relations_txt_unique[i]: i for i in range(len(attr_relations_txt_unique))}
+
+        print("Unique textual attributive relations: ", len(attr_relations_txt_unique))
+
+        # Map entities to ids
+        self.df_literals_txt[0] = self.df_literals_txt[0].map(self.entity2id).astype(int)
+        # Map attributive relations to ids
+        self.df_literals_txt[1] = self.df_literals_txt[1].map(attr_relation_txt_2_id).astype(int)
+        # Change literal values to string
+        self.df_literals_num[2] = self.df_literals_num[2].astype(str)
+
+        nlp = spacy.load('en_core_web_md')
+
+        # Extract embedding vectors for one textual literal value per entity and the attributive relations
+        features_txt = []
+        features_txt_attr = []
+        for i in tqdm(range(len(self.entities))):
+            df_i = self.df_literals_txt[self.df_literals_txt[0] == i]
+
+            features_txt_i = torch.zeros(len(attr_relations_txt_unique), self.embedding_dim)
+            features_txt_attr_i = torch.zeros(len(attr_relations_txt_unique))
+            for index, row in df_i.iterrows():
+                # Textual literal values: row[1] = attributive relation index, row[2] = literal value
+                spacy_embedding = torch.tensor(nlp(row[2]).vector)
+                features_txt_i[int(row[1])] = spacy_embedding
+
+                # One-hot encoding for attributive relations
+                features_txt_attr_i[int(row[1])] = 1
+
+            features_txt.append(features_txt_i)
+            # Normalize txt_attr one hot encoding vector
+            features_txt_attr_i -= torch.mean(features_txt_attr_i)
+            features_txt_attr.append(features_txt_attr_i)
+
+        features_txt = torch.stack(features_txt)
+        features_txt_attr = torch.stack(features_txt_attr)
+
+        return features_txt.squeeze(), features_txt_attr
 
     def filter_literals_by_attr_relation_frequency(self, threshold=100):
         # Only filters numerical literals
@@ -229,50 +205,28 @@ class LiteralLinkPredDataset(Dataset):
         # Filter attributive relations
         self.attr_relations_num = self.attr_relations_num[:, attr_relations_num_filtered]
 
-    # def cluster_literals_txt(self, n_clusters=100):
-    #     # Only clusters textual literals
-    #
-    #     print(f"Clustering textual literals with {n_clusters} clusters...")
-    #     embeddings = self.literals_txt.numpy()
-    #
-    #     embeddings_cluster_labeled = KMeans(n_clusters=n_clusters, random_state=0, n_init=10).fit_predict(embeddings)
-    #
-    #     # Convert text literals to one-hot encoding of clusters
-    #     self.literals_txt = torch.zeros(len(self.entities), n_clusters)
-    #     for i in range(len(embeddings_cluster_labeled)):
-    #         self.literals_txt[i, embeddings_cluster_labeled[i]] = 1
-    #
-    #     # Normalize txt_attr one hot encoding vector
-    #     self.literals_txt -= torch.mean(self.literals_txt, dim=0, keepdim=True)
+    def cluster_literals_txt(self, n_clusters=100):
+        # Only clusters textual literals
+
+        print(f"Clustering textual literals with {n_clusters} clusters...")
+        embeddings = self.literals_txt.numpy()
+
+        embeddings_cluster_labeled = KMeans(n_clusters=n_clusters, random_state=0, n_init=10).fit_predict(embeddings)
+
+        # Convert text literals to one-hot encoding of clusters
+        self.literals_txt = torch.zeros(len(self.entities), n_clusters)
+        for i in range(len(embeddings_cluster_labeled)):
+            self.literals_txt[i, embeddings_cluster_labeled[i]] = 1
+
+        # Normalize txt_attr one hot encoding vector
+        self.literals_txt -= torch.mean(self.literals_txt, dim=0)
 
 
 if __name__ == '__main__':
-    dataset_name = 'LitWD48K'
-    if not osp.isfile(f'data/{dataset_name}/processed.pt'):
-        print('Process dataset...')
-        dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
-        torch.save(dataset, f'data/{dataset_name}/processed.pt')
-
-    dataset = torch.load(f'data/{dataset_name}/processed.pt')
-
-    # Save numerical literals to numpy file
-    np.save(f'data/{dataset_name}/numerical_literals_rep.npy', dataset.literals_num.numpy())
-    # Save textual literals to numpy file
-    # np.save(f'data/{dataset_name}/text_literals_rep.npy', dataset.literals_txt.numpy())
-
-    # Save attributive relation type literals to numpy file
-    np.save(f'data/{dataset_name}/numerical_literals_rep_attr.npy', dataset.attr_relations_num.numpy())
-
-    filtered_ds_100 = dataset
-    filtered_ds_100.filter_literals_by_attr_relation_frequency(100)
-    # Save frequency filtered numerical literals to numpy file (frequency threshold = 100)
-    np.save(f'data/{dataset_name}/numerical_literals_rep_filtered_100.npy',
-            filtered_ds_100.literals_num.numpy())
-
-    # clustered_ds_100 = dataset
-    # clustered_ds_100.cluster_literals_txt(100)
-
-    # # Save clustered textual literals to numpy file (n_clusters = 100)
-    # np.save(f'data/{dataset_name}/text_literals_rep_clustered_100_mean.npy',
-    #         clustered_ds_100.literals_txt.numpy())
-
+    dataset_name = 'FB15k-237'
+    # if not osp.isfile(f'data/{dataset_name}/processed.pt'):
+    #     print('Process dataset...')
+    #     dataset = LiteralLinkPredDataset(f'data/{dataset_name}')
+    #     torch.save(dataset, f'data/{dataset_name}/processed.pt')
+    #
+    # dataset = torch.load(f'data/{dataset_name}/processed.pt')
